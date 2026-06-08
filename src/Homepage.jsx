@@ -173,7 +173,6 @@ const handleFeedbackSubmit = (e) => {
               Modern healthcare platform to manage patients, doctors,
               appointments, billing, pharmacy and hospital operations efficiently.
             </p>
-            <button>Get Started</button>
           </div>
           <div className="hero-image">
             <img
