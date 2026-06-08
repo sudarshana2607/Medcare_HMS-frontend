@@ -376,6 +376,74 @@ function PharmacyDashboard() {
     }
   };
 
+  // Edit medicine — PUT /api/pharmacy/medicines/:id
+  const handleEditMed = async () => {
+    if (!editMedData._id || !editMedData.medicineName) {
+      setEditMedMsg("⚠️ Medicine name is required.");
+      return;
+    }
+    try {
+      await axios.put(`${API}/pharmacy/medicines/${editMedData._id}`, {
+        ...editMedData,
+        quantity: Number(editMedData.quantity) || 0,
+        price: Number(editMedData.price) || 0,
+      });
+      setEditMedMsg("✅ Medicine updated successfully.");
+      setTimeout(() => {
+        setEditMedModal(false);
+        refetchMeds();
+        setEditMedData({});
+        setEditMedMsg("");
+      }, 1000);
+    } catch (err) {
+      setEditMedMsg(`❌ ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  // Edit supplier — PUT /api/pharmacy/suppliers/:id
+  const handleEditSup = async () => {
+    if (!editSupData._id || !editSupData.name) {
+      setEditSupMsg("⚠️ Supplier name is required.");
+      return;
+    }
+    try {
+      await axios.put(`${API}/pharmacy/suppliers/${editSupData._id}`, editSupData);
+      setEditSupMsg("✅ Supplier updated successfully.");
+      setTimeout(() => {
+        setEditSupModal(false);
+        refetchSup();
+        setEditSupData({});
+        setEditSupMsg("");
+      }, 1000);
+    } catch (err) {
+      setEditSupMsg(`❌ ${err.response?.data?.message || err.message}`);
+    }
+  };
+
+  // Edit bill — PUT /api/pharmacy/bills/:id
+  const handleEditBill = async () => {
+    if (!editBillData._id || !editBillData.patientName) {
+      setEditBillMsg("⚠️ Patient name is required.");
+      return;
+    }
+    try {
+      await axios.put(`${API}/pharmacy/bills/${editBillData._id}`, {
+        ...editBillData,
+        totalAmount: Number(editBillData.totalAmount) || Number(editBillData.amount) || 0,
+        amount: Number(editBillData.totalAmount) || Number(editBillData.amount) || 0,
+      });
+      setEditBillMsg("✅ Bill updated successfully.");
+      setTimeout(() => {
+        setEditBillModal(false);
+        refetchBills();
+        setEditBillData({});
+        setEditBillMsg("");
+      }, 1000);
+    } catch (err) {
+      setEditBillMsg(`❌ ${err.response?.data?.message || err.message}`);
+    }
+  };
+
   const sidebar = [
     { page: "dashboard",    label: "Dashboard",            icon: "📊" },
     { page: "prescription", label: "Prescription Requests", icon: "📝" },
