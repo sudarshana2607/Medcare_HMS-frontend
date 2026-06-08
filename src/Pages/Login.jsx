@@ -184,6 +184,13 @@ function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
+
+    // Admin requires firstname + lastname too
+    if (loginType === "admin") {
+      if (!formData.firstname.trim()) newErrors.firstname = "First name required";
+      if (!formData.lastname.trim())  newErrors.lastname  = "Last name required";
+    }
+
     if (!formData.email)    newErrors.email    = "Email required";
     if (!formData.password) newErrors.password = "Password required";
     setErrors(newErrors);
@@ -194,6 +201,8 @@ function Login() {
 
     try {
       const response = await axios.post(`${API}/user/login`, {
+        firstname: loginType === "admin" ? formData.firstname : undefined,
+        lastname:  loginType === "admin" ? formData.lastname  : undefined,
         email:    formData.email,
         password: formData.password,
         role,
@@ -318,17 +327,23 @@ function Login() {
             <div style={S.adminBadge}>🛡️ Admin Portal — Restricted Access</div>
           )}
 
-          {/* Name row */}
+          {/* Name row — shown for both, but only validated for admin */}
           <div style={S.row}>
             <div>
-              <label style={S.label}>First Name</label>
+              <label style={S.label}>
+                First Name {isAdmin && <span style={{ color: "#ef4444" }}>*</span>}
+              </label>
               <input style={S.input} name="firstname" placeholder="First name"
                 value={formData.firstname} onChange={handleChange} />
+              {errors.firstname && <p style={S.errText}>⚠️ {errors.firstname}</p>}
             </div>
             <div>
-              <label style={S.label}>Last Name</label>
+              <label style={S.label}>
+                Last Name {isAdmin && <span style={{ color: "#ef4444" }}>*</span>}
+              </label>
               <input style={S.input} name="lastname" placeholder="Last name"
                 value={formData.lastname} onChange={handleChange} />
+              {errors.lastname && <p style={S.errText}>⚠️ {errors.lastname}</p>}
             </div>
           </div>
 
