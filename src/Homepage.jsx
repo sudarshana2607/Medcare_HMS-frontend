@@ -793,9 +793,6 @@ function Homepage() {
             <textarea rows="5" name="problem" placeholder="Describe Your Problem (symptoms, duration, previous medications, etc.)" value={appointmentData.problem} onChange={handleChange}></textarea>
             <button type="submit">📅 Book Appointment</button>
           </form>
-          <p style={{ textAlign: "center", fontSize: "0.82rem", color: "#9ca3af", marginTop: "0.75rem" }}>
-            🔒 Your data is encrypted and never shared. Confirmation sent via email & SMS.
-          </p>
         </div>
       </section>
 
@@ -913,9 +910,6 @@ function Homepage() {
             <textarea rows="5" name="feedback" placeholder="Tell us about your visit — what went well and what could be improved? Your feedback helps us serve you better." value={feedbackData.feedback} onChange={handleFeedbackChange}></textarea>
             <button type="submit">💬 Submit Feedback</button>
           </form>
-          <p style={{ textAlign: "center", fontSize: "0.82rem", color: "#9ca3af", marginTop: "0.75rem" }}>
-            We read every submission. Thank you for helping us improve!
-          </p>
         </div>
       </section>
 
