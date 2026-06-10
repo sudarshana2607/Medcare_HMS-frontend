@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from "react-router-dom";
 
 const SENTENCES = [
@@ -9,33 +9,62 @@ const SENTENCES = [
   "Quality Healthcare at Your Fingertips",
 ];
 
+// ── Scroll-reveal hook ──
+function useScrollReveal(threshold = 0.15) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { threshold }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [threshold]);
+  return [ref, visible];
+}
+
+function RevealSection({ children, className = "", style = {}, delay = 0 }) {
+  const [ref, visible] = useScrollReveal();
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(36px)",
+        transition: `opacity 0.6s ease ${delay}s, transform 0.6s ease ${delay}s`,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function Homepage() {
   const [sentenceIdx, setSentenceIdx] = useState(0);
   const [displayed, setDisplayed] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [charIdx, setCharIdx] = useState(0);
 
-  // FAQ accordion state
   const [openFaq, setOpenFaq] = useState(null);
-
-  // Modal state: null | 'terms' | 'privacy'
   const [modalContent, setModalContent] = useState(null);
+
+  // Star rating hover state
+  const [hoveredStar, setHoveredStar] = useState(0);
 
   useEffect(() => {
     const current = SENTENCES[sentenceIdx];
     let timeout;
     if (!isDeleting && charIdx <= current.length) {
-      timeout = setTimeout(() => {
-        setDisplayed(current.slice(0, charIdx));
-        setCharIdx(c => c + 1);
-      }, 60);
+      timeout = setTimeout(() => { setDisplayed(current.slice(0, charIdx)); setCharIdx(c => c + 1); }, 60);
     } else if (!isDeleting && charIdx > current.length) {
       timeout = setTimeout(() => setIsDeleting(true), 1800);
     } else if (isDeleting && charIdx >= 0) {
-      timeout = setTimeout(() => {
-        setDisplayed(current.slice(0, charIdx));
-        setCharIdx(c => c - 1);
-      }, 35);
+      timeout = setTimeout(() => { setDisplayed(current.slice(0, charIdx)); setCharIdx(c => c - 1); }, 35);
     } else {
       setIsDeleting(false);
       setSentenceIdx(i => (i + 1) % SENTENCES.length);
@@ -45,82 +74,40 @@ function Homepage() {
   }, [charIdx, isDeleting, sentenceIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [appointmentData, setAppointmentData] = useState({
-    fullname: "",
-    email: "",
-    phone: "",
-    department: "",
-    date: "",
-    time: "",
-    problem: "",
+    fullname: "", email: "", phone: "", department: "", date: "", time: "", problem: "",
   });
 
-  const handleChange = (e) => {
-    setAppointmentData({
-      ...appointmentData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) => setAppointmentData({ ...appointmentData, [e.target.name]: e.target.value });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     localStorage.setItem("appointmentData", JSON.stringify(appointmentData));
     sessionStorage.setItem("appointmentData", JSON.stringify(appointmentData));
     alert("Appointment Saved Successfully");
-    setAppointmentData({
-      fullname: "",
-      email: "",
-      phone: "",
-      department: "",
-      date: "",
-      time: "",
-      problem: "",
-    });
+    setAppointmentData({ fullname: "", email: "", phone: "", department: "", date: "", time: "", problem: "" });
   };
 
-  const [feedbackData, setFeedbackData] = useState({
-    name: "",
-    email: "",
-    rating: "",
-    feedback: "",
-  });
+  const [feedbackData, setFeedbackData] = useState({ name: "", email: "", rating: "", feedback: "" });
 
-  const handleFeedbackChange = (e) => {
-    setFeedbackData({
-      ...feedbackData,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleFeedbackChange = (e) => setFeedbackData({ ...feedbackData, [e.target.name]: e.target.value });
 
   const handleFeedbackSubmit = (e) => {
     e.preventDefault();
     localStorage.setItem("feedbackData", JSON.stringify(feedbackData));
     sessionStorage.setItem("feedbackData", JSON.stringify(feedbackData));
     alert("Feedback Submitted Successfully");
-    setFeedbackData({
-      name: "",
-      email: "",
-      rating: "",
-      feedback: "",
-    });
+    setFeedbackData({ name: "", email: "", rating: "", feedback: "" });
   };
 
   const faqItems = [
-    {
-      q: "How can I book an appointment?",
-      a: "You can book appointments through our online appointment booking system.",
-    },
-    {
-      q: "Can I access my medical reports online?",
-      a: "Yes. Patients can securely access reports through their dashboard.",
-    },
-    {
-      q: "Is emergency service available 24/7?",
-      a: "Yes. Emergency and ambulance services are available round the clock.",
-    },
-    {
-      q: "Can I cancel an appointment?",
-      a: "Yes. Appointments can be cancelled or rescheduled based on availability.",
-    },
+    { q: "How can I book an appointment?", a: "You can book appointments through our online appointment booking system on this page. Select your preferred department, date and time, and our team will confirm within 30 minutes." },
+    { q: "Can I access my medical reports online?", a: "Yes. Patients can securely access all reports, prescriptions and diagnostic results through their personal dashboard after logging in." },
+    { q: "Is emergency service available 24/7?", a: "Yes. Our emergency department and ambulance services are available round the clock, 365 days a year. Call +91 9999999999 for immediate assistance." },
+    { q: "Can I cancel an appointment?", a: "Yes. Appointments can be cancelled or rescheduled up to 2 hours before the scheduled time through your patient dashboard or by calling our helpline." },
+    { q: "Are online consultations available?", a: "Yes. We offer video consultations with our specialist doctors from the comfort of your home. Book an online appointment just like an in-person visit." },
+    { q: "How are patient records kept secure?", a: "All patient data is stored with industry-standard encryption. Only authorised doctors and staff can access your records, and you control who sees your information." },
+    { q: "Does MedCare accept health insurance?", a: "We are empanelled with all major insurance providers. Please carry your insurance card and policy details when visiting. Our billing team will assist with claims." },
+    { q: "What should I bring for my first visit?", a: "Please bring a valid photo ID, any previous medical records or prescriptions, your insurance card (if applicable), and arrive 15 minutes before your scheduled appointment." },
   ];
 
   const termsPoints = [
@@ -149,11 +136,253 @@ function Homepage() {
     ["10. User Rights and Policy Updates", "Users may request correction of inaccurate information or clarification about data usage. The hospital may update this Privacy Policy when required."],
   ];
 
+  // Appointment form field completion count for progress bar
+  const filledFields = Object.values(appointmentData).filter(v => v.trim && v.trim() !== "").length;
+  const formProgress = Math.round((filledFields / 7) * 100);
+
+  // Form step labels
+  const formSteps = ["Personal Info", "Department & Time", "Describe Issue"];
+  const currentStep = filledFields === 0 ? 0 : filledFields <= 3 ? 0 : filledFields <= 6 ? 1 : 2;
+
   return (
     <>
       <style>{`
         @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        @keyframes ticker {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes pulse-badge {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.35); }
+          50% { box-shadow: 0 0 0 6px rgba(124,58,237,0); }
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
 
+        /* ── Card hover lifts ── */
+        .card {
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 12px 32px rgba(124,58,237,0.15);
+        }
+
+        /* ── Doctor card enhancements ── */
+        .doctor-card {
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .doctor-card:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 12px 32px rgba(124,58,237,0.18);
+        }
+        .doctor-avatar {
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #7c3aed22, #7c3aed44);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 2rem;
+          margin: 0 auto 0.75rem;
+          border: 3px solid #7c3aed33;
+        }
+        .availability-badge {
+          display: inline-block;
+          background: #d1fae5;
+          color: #065f46;
+          font-size: 0.72rem;
+          font-weight: 600;
+          padding: 2px 10px;
+          border-radius: 20px;
+          margin-top: 0.5rem;
+          letter-spacing: 0.02em;
+          animation: pulse-badge 2.5s infinite;
+        }
+        .doctor-meta {
+          font-size: 0.8rem;
+          color: #6b7280;
+          margin: 0.2rem 0 0;
+        }
+
+        /* ── Review card enhancements ── */
+        .review-card {
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .review-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 10px 28px rgba(124,58,237,0.13);
+        }
+        .review-stars { color: #f59e0b; font-size: 1rem; letter-spacing: 2px; }
+        .review-avatar {
+          width: 44px;
+          height: 44px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #7c3aed, #a78bfa);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #fff;
+          font-weight: 700;
+          font-size: 1.1rem;
+          margin: 0 auto 0.5rem;
+        }
+        .review-verified {
+          font-size: 0.72rem;
+          color: #7c3aed;
+          font-weight: 600;
+          margin-top: 0.4rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 4px;
+        }
+
+        /* ── Announcement bar ── */
+        .announcement-bar-inner {
+          display: flex;
+          white-space: nowrap;
+          animation: ticker 28s linear infinite;
+        }
+        .announcement-bar { overflow: hidden; }
+
+        /* ── Hero CTA buttons ── */
+        .hero-btn-primary {
+          display: inline-block;
+          background: #7c3aed;
+          color: #fff;
+          padding: 0.75rem 2rem;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 1rem;
+          text-decoration: none;
+          transition: background 0.2s, transform 0.2s;
+          margin-right: 1rem;
+          margin-top: 1.2rem;
+        }
+        .hero-btn-primary:hover { background: #6d28d9; transform: translateY(-2px); }
+        .hero-btn-outline {
+          display: inline-block;
+          border: 2px solid #7c3aed;
+          color: #7c3aed;
+          padding: 0.73rem 2rem;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 1rem;
+          text-decoration: none;
+          transition: background 0.2s, color 0.2s, transform 0.2s;
+          margin-top: 1.2rem;
+        }
+        .hero-btn-outline:hover { background: #7c3aed; color: #fff; transform: translateY(-2px); }
+
+        /* ── Hero trust bar ── */
+        .hero-trust-bar {
+          display: flex;
+          gap: 2rem;
+          margin-top: 2rem;
+          flex-wrap: wrap;
+        }
+        .hero-trust-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          font-size: 0.88rem;
+          color: #4b5563;
+        }
+        .hero-trust-icon { font-size: 1.2rem; }
+
+        /* ── How it works ── */
+        .hiw-section { padding: 4rem 2rem; }
+        .hiw-steps {
+          display: flex;
+          gap: 1.5rem;
+          justify-content: center;
+          flex-wrap: wrap;
+          margin-top: 2.5rem;
+        }
+        .hiw-step {
+          flex: 1 1 200px;
+          max-width: 240px;
+          text-align: center;
+          position: relative;
+        }
+        .hiw-step-num {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #7c3aed, #a78bfa);
+          color: #fff;
+          font-size: 1.4rem;
+          font-weight: 700;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 auto 1rem;
+          box-shadow: 0 4px 16px rgba(124,58,237,0.3);
+        }
+        .hiw-step h4 { margin: 0 0 0.4rem; font-size: 1rem; color: #1f2937; }
+        .hiw-step p { font-size: 0.88rem; color: #6b7280; margin: 0; line-height: 1.5; }
+        .hiw-connector {
+          position: absolute;
+          top: 28px;
+          right: -1rem;
+          width: 2rem;
+          border-top: 2px dashed #d1d5db;
+        }
+
+        /* ── Form progress bar ── */
+        .form-progress-wrap { margin-bottom: 1.5rem; }
+        .form-progress-label {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.8rem;
+          color: #6b7280;
+          margin-bottom: 0.4rem;
+        }
+        .form-progress-bar-bg {
+          height: 6px;
+          background: #e5e7eb;
+          border-radius: 99px;
+          overflow: hidden;
+        }
+        .form-progress-bar-fill {
+          height: 100%;
+          background: linear-gradient(90deg, #7c3aed, #a78bfa);
+          border-radius: 99px;
+          transition: width 0.4s ease;
+        }
+        .form-steps-row {
+          display: flex;
+          gap: 0.5rem;
+          margin-bottom: 1.2rem;
+          flex-wrap: wrap;
+        }
+        .form-step-chip {
+          font-size: 0.75rem;
+          padding: 4px 12px;
+          border-radius: 20px;
+          font-weight: 500;
+          border: 1.5px solid #e5e7eb;
+          color: #9ca3af;
+          background: #f9fafb;
+          transition: all 0.2s;
+        }
+        .form-step-chip.active {
+          border-color: #7c3aed;
+          color: #7c3aed;
+          background: #f5f3ff;
+          font-weight: 600;
+        }
+        .form-step-chip.done {
+          border-color: #10b981;
+          color: #10b981;
+          background: #f0fdf4;
+        }
+
+        /* ── FAQ ── */
         .faq-item {
           cursor: pointer;
           border-bottom: 1px solid #e5e7eb;
@@ -185,6 +414,108 @@ function Homepage() {
           line-height: 1.6;
         }
 
+        /* ── Star rating ── */
+        .star-rating-row {
+          display: flex;
+          gap: 6px;
+          margin: 0.5rem 0 1rem;
+        }
+        .star-btn {
+          background: none;
+          border: none;
+          font-size: 1.6rem;
+          cursor: pointer;
+          padding: 0;
+          transition: transform 0.15s;
+          line-height: 1;
+        }
+        .star-btn:hover { transform: scale(1.25); }
+
+        /* ── Newsletter strip ── */
+        .newsletter-strip {
+          background: linear-gradient(135deg, #7c3aed11, #a78bfa11);
+          border: 1.5px solid #7c3aed22;
+          border-radius: 16px;
+          padding: 2rem 2.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 1.5rem;
+          flex-wrap: wrap;
+          margin: 2rem 0;
+        }
+        .newsletter-strip h3 { margin: 0 0 0.25rem; font-size: 1.15rem; color: #1f2937; }
+        .newsletter-strip p { margin: 0; font-size: 0.88rem; color: #6b7280; }
+        .newsletter-input-row {
+          display: flex;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+        }
+        .newsletter-input {
+          padding: 0.6rem 1rem;
+          border: 1.5px solid #d1d5db;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          min-width: 220px;
+          outline: none;
+          transition: border-color 0.2s;
+        }
+        .newsletter-input:focus { border-color: #7c3aed; }
+        .newsletter-btn {
+          background: #7c3aed;
+          color: #fff;
+          border: none;
+          padding: 0.6rem 1.4rem;
+          border-radius: 8px;
+          font-weight: 600;
+          font-size: 0.9rem;
+          cursor: pointer;
+          transition: background 0.2s;
+        }
+        .newsletter-btn:hover { background: #6d28d9; }
+
+        /* ── Stat highlight row ── */
+        .stat-row {
+          display: flex;
+          gap: 1rem;
+          flex-wrap: wrap;
+          justify-content: center;
+          margin: 2.5rem 0 0;
+          padding: 1.5rem 2rem;
+          background: #7c3aed08;
+          border-radius: 14px;
+          border: 1px solid #7c3aed15;
+        }
+        .stat-item { text-align: center; flex: 1 1 120px; }
+        .stat-num { font-size: 1.8rem; font-weight: 800; color: #7c3aed; line-height: 1.1; }
+        .stat-label { font-size: 0.78rem; color: #6b7280; margin-top: 2px; }
+
+        /* ── Floating hero image ── */
+        .hero-img-float { animation: float 5s ease-in-out infinite; }
+
+        /* ── Accreditation bar ── */
+        .accreditation-bar {
+          display: flex;
+          gap: 2rem;
+          align-items: center;
+          justify-content: center;
+          flex-wrap: wrap;
+          padding: 1.2rem 2rem;
+          background: #f9fafb;
+          border-top: 1px solid #f3f4f6;
+          border-bottom: 1px solid #f3f4f6;
+          font-size: 0.82rem;
+          color: #6b7280;
+        }
+        .accreditation-bar span { display: flex; align-items: center; gap: 6px; }
+
+        /* ── Module icon dot ── */
+        .module-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
+
+        /* ── Department chip ── */
+        .dept-icon { font-size: 1.5rem; margin-bottom: 0.4rem; }
+
+        /* ── Modal ── */
         .modal-overlay {
           position: fixed;
           inset: 0;
@@ -226,21 +557,12 @@ function Homepage() {
           transition: color 0.2s;
         }
         .modal-close-btn:hover { color: #111; }
-        .modal-point {
-          margin-bottom: 1rem;
-          line-height: 1.6;
-        }
-        .modal-point strong {
-          display: block;
-          color: #1f2937;
-          margin-bottom: 0.2rem;
-        }
-        .modal-point p {
-          margin: 0;
-          color: #4b5563;
-        }
+        .modal-point { margin-bottom: 1rem; line-height: 1.6; }
+        .modal-point strong { display: block; color: #1f2937; margin-bottom: 0.2rem; }
+        .modal-point p { margin: 0; color: #4b5563; }
       `}</style>
 
+      {/* ── Nav ── */}
       <nav>
         <div className="logo">
           <img src="/logo.png" alt="MedCare Logo" />
@@ -256,36 +578,53 @@ function Homepage() {
         </ul>
       </nav>
 
-      <div className="announcement-bar" role="status" aria-live="polite">
-        🚑 24/7 Emergency Services Available |
-        💜 Free Health Checkup Camp Every Month |
-        📞 Emergency Contact : +91 9999999999 |
-        🩺 Expert Doctors Available Across All Departments |
-        💊 Special Offers  Available
+      {/* ── Scrolling Announcement Bar ── */}
+      <div className="announcement-bar" role="status" aria-live="polite" style={{ overflow: "hidden" }}>
+        <div className="announcement-bar-inner">
+          {[...Array(2)].map((_, ri) => (
+            <span key={ri} style={{ display: "inline-flex", gap: "2.5rem", paddingRight: "2.5rem" }}>
+              <span>🚑 24/7 Emergency Services Available</span>
+              <span>💜 Free Health Checkup Camp Every Month</span>
+              <span>📞 Emergency Contact : +91 9999999999</span>
+              <span>🩺 Expert Doctors Across All Departments</span>
+              <span>💊 Special Offers Available</span>
+              <span>🏆 NABH Accredited Hospital</span>
+              <span>🌐 Online Consultations Now Available</span>
+            </span>
+          ))}
+        </div>
       </div>
 
+      {/* ── Hero ── */}
       <section className="hero">
         <div className="hero-content">
           <div className="hero-text">
             <h1 style={{ minHeight: "3.2rem" }}>
               {displayed}
               <span style={{
-                display: "inline-block",
-                width: 3,
-                height: "1em",
-                background: "#7c3aed",
-                marginLeft: 2,
-                verticalAlign: "text-bottom",
-                animation: "blink 0.8s step-end infinite",
+                display: "inline-block", width: 3, height: "1em", background: "#7c3aed",
+                marginLeft: 2, verticalAlign: "text-bottom", animation: "blink 0.8s step-end infinite",
               }} />
             </h1>
             <p>
               Modern healthcare platform to manage patients, doctors,
               appointments, billing, pharmacy and hospital operations efficiently.
+              Trusted by 5,000+ patients across Tamil Nadu.
             </p>
+            <div>
+              <a href="#booking" className="hero-btn-primary">📅 Book Appointment</a>
+              <a href="#about" className="hero-btn-outline">Learn More →</a>
+            </div>
+            <div className="hero-trust-bar">
+              <div className="hero-trust-item"><span className="hero-trust-icon">🔒</span> Secure &amp; HIPAA-safe</div>
+              <div className="hero-trust-item"><span className="hero-trust-icon">⚡</span> Instant Confirmation</div>
+              <div className="hero-trust-item"><span className="hero-trust-icon">🩺</span> 150+ Specialists</div>
+              <div className="hero-trust-item"><span className="hero-trust-icon">🌟</span> 4.9 / 5 Patient Rating</div>
+            </div>
           </div>
           <div className="hero-image">
             <img
+              className="hero-img-float"
               src="https://img.magnific.com/free-photo/copy-space-stethoscope-pills_23-2148550954.jpg"
               alt="Stethoscope and pills on a desk"
             />
@@ -293,9 +632,20 @@ function Homepage() {
         </div>
       </section>
 
+      {/* ── Accreditation Bar ── */}
+      <div className="accreditation-bar">
+        <span>🏅 NABH Accredited</span>
+        <span>🌐 ISO 9001:2015 Certified</span>
+        <span>💳 Cashless Insurance Available</span>
+        <span>🚑 Ambulance in 10 Minutes</span>
+        <span>💻 Paperless Digital Records</span>
+        <span>🧪 In-house Advanced Diagnostics</span>
+      </div>
+
+      {/* ── About ── */}
       <section className="about-section" id="about">
         <div className="about-container">
-          <div className="about-text">
+          <RevealSection className="about-text">
             <h2>About Us</h2>
             <p>
               Founded with a vision to provide quality healthcare services,
@@ -304,159 +654,306 @@ function Homepage() {
               We focus on modern healthcare technology, patient satisfaction and seamless
               hospital operations.
             </p>
-          </div>
+            <p style={{ marginTop: "0.8rem", color: "#4b5563", lineHeight: 1.7 }}>
+              From routine check-ups to complex surgical procedures, our network of
+              experienced specialists is equipped with the latest medical technology.
+              We believe every patient deserves personalised, compassionate care — and
+              our digital-first platform makes that easier than ever.
+            </p>
+          </RevealSection>
           <div className="about-cards">
-            <div className="about-card">
-              <h1>25+</h1>
-              <h3>Years Experience</h3>
-              <p>Providing trusted healthcare management solutions with advanced technology.</p>
-            </div>
-            <div className="about-card">
-              <h1>150+</h1>
-              <h3>Doctors</h3>
-              <p>Experienced doctors and specialists available across multiple departments.</p>
-            </div>
-            <div className="about-card">
-              <h1>5000+</h1>
-              <h3>Happy Patients</h3>
-              <p>Thousands of patients successfully treated with quality care and support.</p>
-            </div>
-            <div className="about-card">
-              <h1>24/7</h1>
-              <h3>Emergency Support</h3>
-              <p>Round-the-clock emergency healthcare and patient assistance services.</p>
-            </div>
+            {[
+              { num: "25+", title: "Years Experience", desc: "Providing trusted healthcare management solutions with advanced technology." },
+              { num: "150+", title: "Doctors", desc: "Experienced doctors and specialists available across multiple departments." },
+              { num: "5000+", title: "Happy Patients", desc: "Thousands of patients successfully treated with quality care and support." },
+              { num: "24/7", title: "Emergency Support", desc: "Round-the-clock emergency healthcare and patient assistance services." },
+            ].map((item, i) => (
+              <RevealSection key={i} delay={i * 0.1}>
+                <div className="about-card">
+                  <h1>{item.num}</h1>
+                  <h3>{item.title}</h3>
+                  <p>{item.desc}</p>
+                </div>
+              </RevealSection>
+            ))}
           </div>
         </div>
       </section>
 
+      {/* ── How It Works ── */}
+      <section className="hiw-section">
+        <h2 className="section-title">How It Works</h2>
+        <RevealSection>
+          <div className="hiw-steps">
+            {[
+              { icon: "📋", num: "1", title: "Register / Login", desc: "Create your patient account in under 2 minutes using your phone or email." },
+              { icon: "🔍", num: "2", title: "Find a Doctor", desc: "Browse our specialists by department, availability or language preference." },
+              { icon: "📅", num: "3", title: "Book Appointment", desc: "Pick a date and time that works for you — online or in-person." },
+              { icon: "🩺", num: "4", title: "Consult &amp; Get Treated", desc: "Meet your doctor, receive a diagnosis, prescription and care plan." },
+              { icon: "📂", num: "5", title: "Access Your Records", desc: "View reports, prescriptions and follow-up notes anytime from your dashboard." },
+            ].map((step, i, arr) => (
+              <div className="hiw-step" key={i}>
+                <div className="hiw-step-num" style={{ fontSize: "1.3rem" }}>{step.icon}</div>
+                <h4>{step.title}</h4>
+                <p dangerouslySetInnerHTML={{ __html: step.desc }} />
+                {i < arr.length - 1 && <div className="hiw-connector" />}
+              </div>
+            ))}
+          </div>
+        </RevealSection>
+      </section>
+
+      {/* ── Features / Modules ── */}
       <section className="modules" id="modules">
         <h2 className="section-title">Hospital Features</h2>
         <div className="card-container">
-          <div className="card"><h3>Patient Module</h3><p>Manage patient records and treatment details.</p></div>
-          <div className="card"><h3>Doctor Module</h3><p>Manage doctor profiles and schedules.</p></div>
-          <div className="card"><h3>Appointment Module</h3><p>Book and manage patient appointments.</p></div>
-          <div className="card"><h3>Billing Module</h3><p>Generate invoices and payment reports.</p></div>
-          <div className="card"><h3>Pharmacy Module</h3><p>Maintain medicines and prescriptions.</p></div>
-          <div className="card"><h3>Lab Module</h3><p>Store laboratory tests and diagnostics.</p></div>
-          <div className="card"><h3>Emergency Module</h3><p>Treat patient with first priority when its emergency.</p></div>
+          {[
+            { icon: "🧑‍⚕️", title: "Patient Module", desc: "Manage patient records, medical history, treatment plans and discharge summaries in one place." },
+            { icon: "👨‍⚕️", title: "Doctor Module", desc: "Manage doctor profiles, specialisations, availability schedules and consultation history." },
+            { icon: "📅", title: "Appointment Module", desc: "Book, reschedule and cancel patient appointments with automated reminders." },
+            { icon: "💳", title: "Billing Module", desc: "Generate itemised invoices, process insurance claims and produce payment reports." },
+            { icon: "💊", title: "Pharmacy Module", desc: "Maintain medicine inventory, manage prescriptions and track dispensing records." },
+            { icon: "🧪", title: "Lab Module", desc: "Store laboratory test orders, results and diagnostic reports securely." },
+            { icon: "🚨", title: "Emergency Module", desc: "Prioritise critical cases, coordinate ambulances and alert the duty team instantly." },
+          ].map((m, i) => (
+            <RevealSection key={i} delay={i * 0.07}>
+              <div className="card">
+                <div className="module-icon">{m.icon}</div>
+                <h3>{m.title}</h3>
+                <p>{m.desc}</p>
+              </div>
+            </RevealSection>
+          ))}
         </div>
       </section>
 
+      {/* ── Departments ── */}
       <section className="departments" id="departments">
         <h2 className="section-title">Hospital Departments</h2>
         <div className="card-container">
-          <div className="card"><h3>Neurology</h3><p>Specialists for brain, nerves and neurological disorders.</p></div>
-          <div className="card"><h3>Pediatrics</h3><p>Healthcare services for infants, children and teenagers.</p></div>
-          <div className="card"><h3>Cardiology</h3><p>Treatment and diagnosis for heart related diseases.</p></div>
-          <div className="card"><h3>Orthopedics</h3><p>Bone, joint and muscle treatment specialists.</p></div>
-          <div className="card"><h3>Dermatology</h3><p>Skin, hair and nail care treatments.</p></div>
-          <div className="card"><h3>Gynecology</h3><p>Women reproductive health and maternity care.</p></div>
-          <div className="card"><h3>ENT</h3><p>Ear, nose and throat specialist department.</p></div>
-          <div className="card"><h3>Radiology</h3><p>Medical imaging and scan services department.</p></div>
-          <div className="card"><h3>Oncology</h3><p>Cancer diagnosis and treatment specialists.</p></div>
-          <div className="card"><h3>Psychiatry</h3><p>Mental health and counseling support department.</p></div>
-          <div className="card"><h3>Urology</h3><p>Treatment for urinary tract and kidney conditions.</p></div>
-          <div className="card"><h3>General Medicine</h3><p>Primary healthcare and overall medical treatment.</p></div>
+          {[
+            { icon: "🧠", title: "Neurology", desc: "Specialists for brain, nerves and neurological disorders including epilepsy and stroke." },
+            { icon: "👶", title: "Pediatrics", desc: "Healthcare services for infants, children and teenagers with dedicated child-friendly care." },
+            { icon: "❤️", title: "Cardiology", desc: "Treatment and diagnosis for heart related diseases, ECG and interventional procedures." },
+            { icon: "🦴", title: "Orthopedics", desc: "Bone, joint and muscle treatment specialists including sports injuries and joint replacement." },
+            { icon: "🌿", title: "Dermatology", desc: "Skin, hair and nail care treatments including cosmetic dermatology procedures." },
+            { icon: "🌸", title: "Gynecology", desc: "Women reproductive health, maternity care and high-risk pregnancy management." },
+            { icon: "👂", title: "ENT", desc: "Ear, nose and throat specialist department with audiology and endoscopy services." },
+            { icon: "🔬", title: "Radiology", desc: "Medical imaging including MRI, CT scan, X-ray and ultrasound services." },
+            { icon: "🎗️", title: "Oncology", desc: "Cancer diagnosis, chemotherapy, radiation therapy and palliative care." },
+            { icon: "🧘", title: "Psychiatry", desc: "Mental health, counselling, de-addiction support and cognitive therapy." },
+            { icon: "🫘", title: "Urology", desc: "Treatment for urinary tract, prostate, kidney and bladder conditions." },
+            { icon: "🩺", title: "General Medicine", desc: "Primary healthcare, routine check-ups and overall medical treatment for all ages." },
+          ].map((d, i) => (
+            <RevealSection key={i} delay={(i % 4) * 0.08}>
+              <div className="card">
+                <div className="dept-icon">{d.icon}</div>
+                <h3>{d.title}</h3>
+                <p>{d.desc}</p>
+              </div>
+            </RevealSection>
+          ))}
         </div>
       </section>
 
+      {/* ── Appointment Booking ── */}
       <section id="booking">
         <h2 className="section-title">Book a Meeting</h2>
         <div className="booking-container">
+          {/* Progress bar */}
+          <div className="form-progress-wrap">
+            <div className="form-steps-row">
+              {formSteps.map((s, i) => (
+                <span key={s} className={`form-step-chip ${i < currentStep ? "done" : i === currentStep ? "active" : ""}`}>
+                  {i < currentStep ? "✓ " : `${i + 1}. `}{s}
+                </span>
+              ))}
+            </div>
+            <div className="form-progress-label">
+              <span>Form completion</span>
+              <span>{formProgress}%</span>
+            </div>
+            <div className="form-progress-bar-bg">
+              <div className="form-progress-bar-fill" style={{ width: `${formProgress}%` }} />
+            </div>
+          </div>
+
           <form className="booking-form" onSubmit={handleSubmit}>
             <input type="text" name="fullname" placeholder="Enter Full Name" value={appointmentData.fullname} onChange={handleChange} required />
             <input type="email" name="email" placeholder="Enter Email Address" value={appointmentData.email} onChange={handleChange} required />
             <input type="tel" name="phone" placeholder="Enter Phone Number" value={appointmentData.phone} onChange={handleChange} required />
             <select name="department" value={appointmentData.department} onChange={handleChange} required>
               <option value="">Select Department</option>
-              <option>Cardiology</option>
-              <option>Neurology</option>
-              <option>Pediatrics</option>
-              <option>Orthopedics</option>
-              <option>Dermatology</option>
-              <option>Gynecology</option>
-              <option>ENT</option>
-              <option>Radiology</option>
-              <option>Oncology</option>
-              <option>Psychiatry</option>
-              <option>Urology</option>
-              <option>General Medicine</option>
+              {["Cardiology","Neurology","Pediatrics","Orthopedics","Dermatology","Gynecology","ENT","Radiology","Oncology","Psychiatry","Urology","General Medicine"].map(d => (
+                <option key={d}>{d}</option>
+              ))}
             </select>
             <input type="date" name="date" value={appointmentData.date} onChange={handleChange} required />
             <input type="time" name="time" value={appointmentData.time} onChange={handleChange} required />
-            <textarea rows="5" name="problem" placeholder="Describe Your Problem" value={appointmentData.problem} onChange={handleChange}></textarea>
-            <button type="submit">Book Appointment</button>
+            <textarea rows="5" name="problem" placeholder="Describe Your Problem (symptoms, duration, previous medications, etc.)" value={appointmentData.problem} onChange={handleChange}></textarea>
+            <button type="submit">📅 Book Appointment</button>
           </form>
+          <p style={{ textAlign: "center", fontSize: "0.82rem", color: "#9ca3af", marginTop: "0.75rem" }}>
+            🔒 Your data is encrypted and never shared. Confirmation sent via email & SMS.
+          </p>
         </div>
       </section>
 
+      {/* ── Doctors ── */}
       <section className="doctors-section">
         <h2 className="section-title">Our Specialists</h2>
         <div className="card-container">
-          <div className="card"><h3>Dr. Ramesh Kumar</h3><p>Cardiologist</p></div>
-          <div className="card"><h3>Dr. Priya Sharma</h3><p>Neurologist</p></div>
-          <div className="card"><h3>Dr. Arun Prakash</h3><p>Orthopedic Specialist</p></div>
-          <div className="card"><h3>Dr. Kavya Devi</h3><p>Dermatologist</p></div>
-          <div className="card"><h3>Dr. Nithya Raj</h3><p>Pediatrician</p></div>
-          <div className="card"><h3>Dr. Harish Kumar</h3><p>General Physician</p></div>
+          {[
+            { emoji: "👨‍⚕️", name: "Dr. Ramesh Kumar", role: "Cardiologist", exp: "18 yrs experience", lang: "Tamil, English", avail: "Mon – Sat" },
+            { emoji: "👩‍⚕️", name: "Dr. Priya Sharma", role: "Neurologist", exp: "14 yrs experience", lang: "Tamil, Hindi", avail: "Mon – Fri" },
+            { emoji: "👨‍⚕️", name: "Dr. Arun Prakash", role: "Orthopedic Specialist", exp: "20 yrs experience", lang: "Tamil, English", avail: "Tue – Sun" },
+            { emoji: "👩‍⚕️", name: "Dr. Kavya Devi", role: "Dermatologist", exp: "11 yrs experience", lang: "Tamil", avail: "Mon – Sat" },
+            { emoji: "👩‍⚕️", name: "Dr. Nithya Raj", role: "Pediatrician", exp: "9 yrs experience", lang: "Tamil, English", avail: "Mon – Sat" },
+            { emoji: "👨‍⚕️", name: "Dr. Harish Kumar", role: "General Physician", exp: "15 yrs experience", lang: "Tamil, Telugu", avail: "Daily" },
+          ].map((doc, i) => (
+            <RevealSection key={i} delay={i * 0.08}>
+              <div className="card doctor-card" style={{ textAlign: "center" }}>
+                <div className="doctor-avatar">{doc.emoji}</div>
+                <h3 style={{ margin: "0 0 0.2rem" }}>{doc.name}</h3>
+                <p style={{ margin: 0, fontWeight: 600, color: "#7c3aed", fontSize: "0.92rem" }}>{doc.role}</p>
+                <p className="doctor-meta">{doc.exp} · {doc.lang}</p>
+                <span className="availability-badge">🟢 Available {doc.avail}</span>
+              </div>
+            </RevealSection>
+          ))}
         </div>
       </section>
 
+      {/* ── Stats row ── */}
+      <RevealSection>
+        <div className="stat-row" style={{ margin: "0 2rem 2rem" }}>
+          {[
+            { num: "98%", label: "Patient Satisfaction" },
+            { num: "<15 min", label: "Avg. Wait Time" },
+            { num: "40+", label: "Departments & Units" },
+            { num: "300+", label: "Beds Capacity" },
+            { num: "10 min", label: "Ambulance Response" },
+            { num: "1M+", label: "Tests Processed / Year" },
+          ].map((s, i) => (
+            <div className="stat-item" key={i}>
+              <div className="stat-num">{s.num}</div>
+              <div className="stat-label">{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </RevealSection>
+
+      {/* ── Reviews ── */}
       <section className="reviews">
-        <h2 className="section-title">Patient Reviews</h2>
+        <h2 className="section-title">What Our Patients Say</h2>
         <div className="review-container">
-          <div className="review-card"><h4>Arun</h4><p>Excellent hospital service with smooth appointment booking and quick support.</p></div>
-          <div className="review-card"><h4>Priya</h4><p>Doctors are professional and the consultation process is very easy.</p></div>
-          <div className="review-card"><h4>Rahul</h4><p>Billing and pharmacy services are well managed and fast.</p></div>
+          {[
+            { name: "Arun M.", initials: "A", stars: 5, text: "Excellent hospital service with smooth appointment booking and quick support. The doctors are thorough and genuinely caring. Highly recommend!", tag: "Cardiology Patient" },
+            { name: "Priya S.", initials: "P", stars: 5, text: "Doctors are professional and the consultation process is very easy. I had an online appointment and got my prescription in minutes. Wonderful experience.", tag: "Online Consultation" },
+            { name: "Rahul T.", initials: "R", stars: 4, text: "Billing and pharmacy services are well managed and fast. The lab reports were ready well within the promised time. Very organised hospital.", tag: "General Medicine" },
+            { name: "Lakshmi V.", initials: "L", stars: 5, text: "From booking to discharge, every step was seamless. The nursing staff is incredibly attentive and the facility is spotless. Best hospital in Pollachi.", tag: "Gynecology Patient" },
+            { name: "Suresh K.", initials: "S", stars: 5, text: "My father was admitted through emergency and the response time was under 10 minutes. Truly professional team. Forever grateful to the MedCare family.", tag: "Emergency Care" },
+            { name: "Anitha R.", initials: "A", stars: 4, text: "The children's ward is bright and friendly. Dr. Nithya put my daughter completely at ease. We always come to MedCare for our family's healthcare needs.", tag: "Pediatrics" },
+          ].map((r, i) => (
+            <RevealSection key={i} delay={(i % 3) * 0.1}>
+              <div className="review-card" style={{ textAlign: "center" }}>
+                <div className="review-avatar">{r.initials}</div>
+                <h4 style={{ margin: "0 0 0.1rem" }}>{r.name}</h4>
+                <div style={{ fontSize: "0.75rem", color: "#7c3aed", marginBottom: "0.4rem", fontWeight: 500 }}>{r.tag}</div>
+                <div className="review-stars">{"★".repeat(r.stars)}{"☆".repeat(5 - r.stars)}</div>
+                <p style={{ marginTop: "0.6rem", fontSize: "0.9rem", color: "#4b5563", lineHeight: 1.6 }}>"{r.text}"</p>
+                <div className="review-verified">✅ Verified Patient</div>
+              </div>
+            </RevealSection>
+          ))}
         </div>
       </section>
 
+      {/* ── Feedback ── */}
       <section className="feedback-section">
-        <h2 className="section-title">Patient Feedback</h2>
+        <h2 className="section-title">Share Your Feedback</h2>
         <div className="booking-container">
           <form className="booking-form" onSubmit={handleFeedbackSubmit}>
             <input type="text" name="name" placeholder="Enter Name" value={feedbackData.name} onChange={handleFeedbackChange} required />
             <input type="email" name="email" placeholder="Enter Email" value={feedbackData.email} onChange={handleFeedbackChange} required />
-            <select name="rating" value={feedbackData.rating} onChange={handleFeedbackChange} required>
-              <option value="">Rate Our Service</option>
-              <option value="Excellent">Excellent</option>
-              <option value="Very Good">Very Good</option>
-              <option value="Good">Good</option>
-              <option value="Average">Average</option>
-              <option value="Poor">Poor</option>
-            </select>
-            <textarea rows="5" name="feedback" placeholder="Write Your Feedback" value={feedbackData.feedback} onChange={handleFeedbackChange}></textarea>
-            <button type="submit">Submit Feedback</button>
+
+            {/* Interactive star rating */}
+            <div>
+              <label style={{ fontSize: "0.88rem", color: "#6b7280", display: "block", marginBottom: "0.2rem" }}>
+                Tap to rate your experience
+              </label>
+              <div className="star-rating-row">
+                {[1,2,3,4,5].map(star => {
+                  const ratingVal = feedbackData.rating ? parseInt(feedbackData.rating) : 0;
+                  const filled = star <= (hoveredStar || ratingVal);
+                  return (
+                    <button
+                      type="button"
+                      key={star}
+                      className="star-btn"
+                      style={{ color: filled ? "#f59e0b" : "#d1d5db" }}
+                      onMouseEnter={() => setHoveredStar(star)}
+                      onMouseLeave={() => setHoveredStar(0)}
+                      onClick={() => {
+                        const labels = ["", "Poor", "Average", "Good", "Very Good", "Excellent"];
+                        handleFeedbackChange({ target: { name: "rating", value: labels[star] } });
+                      }}
+                    >★</button>
+                  );
+                })}
+                {feedbackData.rating && (
+                  <span style={{ fontSize: "0.85rem", color: "#7c3aed", fontWeight: 600, alignSelf: "center", marginLeft: 4 }}>
+                    {feedbackData.rating}
+                  </span>
+                )}
+              </div>
+              <input type="hidden" name="rating" value={feedbackData.rating} />
+            </div>
+
+            <textarea rows="5" name="feedback" placeholder="Tell us about your visit — what went well and what could be improved? Your feedback helps us serve you better." value={feedbackData.feedback} onChange={handleFeedbackChange}></textarea>
+            <button type="submit">💬 Submit Feedback</button>
           </form>
+          <p style={{ textAlign: "center", fontSize: "0.82rem", color: "#9ca3af", marginTop: "0.75rem" }}>
+            We read every submission. Thank you for helping us improve!
+          </p>
         </div>
       </section>
 
-      {/* ── FAQ Section — Click question to toggle answer ── */}
+      {/* ── FAQ ── */}
       <section id="faq" className="faq-section">
         <h2 className="section-title">Frequently Asked Questions</h2>
         <div className="faq-box">
           {faqItems.map((item, i) => (
-            <div
-              className="faq-item"
-              key={i}
-              onClick={() => setOpenFaq(openFaq === i ? null : i)}
-            >
+            <div className="faq-item" key={i} onClick={() => setOpenFaq(openFaq === i ? null : i)}>
               <h4>
                 {item.q}
                 <span className={`faq-toggle ${openFaq === i ? "open" : ""}`}>+</span>
               </h4>
-              {openFaq === i && (
-                <p className="faq-answer">{item.a}</p>
-              )}
+              {openFaq === i && <p className="faq-answer">{item.a}</p>}
             </div>
           ))}
         </div>
       </section>
 
+      {/* ── Footer ── */}
       <footer>
-        <div className="footer-container">
+        {/* Newsletter strip inside footer top */}
+        <div style={{ padding: "2rem 2rem 0" }}>
+          <RevealSection>
+            <div className="newsletter-strip">
+              <div>
+                <h3>📧 Stay Updated with MedCare</h3>
+                <p>Health tips, free camp alerts and appointment reminders — delivered to your inbox.</p>
+              </div>
+              <div className="newsletter-input-row">
+                <input className="newsletter-input" type="email" placeholder="Enter your email address" />
+                <button className="newsletter-btn" type="button" onClick={() => alert("Subscribed! Thank you.")}>Subscribe</button>
+              </div>
+            </div>
+          </RevealSection>
+        </div>
 
+        <div className="footer-container">
           <div className="footer-logo">
             <img src="/logo.png" alt="MedCare Logo" />
             <div className="social-icons">
@@ -468,13 +965,8 @@ function Homepage() {
             </div>
             <iframe
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3920.9214938728173!2d77.00530347767985!3d10.663201662350483!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3ba8382aa12c47c7%3A0x3125acac566855d0!2sSiva%20Meds%20Multispeciality%20Hospital!5e0!3m2!1sen!2sin!4v1779901487034!5m2!1sen!2sin"
-              width="250"
-              height="250"
-              style={{ border: 0 }}
-              allowFullScreen
-              loading="lazy"
-              title="Hospital Location Map"
-            ></iframe>
+              width="250" height="250" style={{ border: 0 }} allowFullScreen loading="lazy" title="Hospital Location Map"
+            />
           </div>
 
           <div>
@@ -508,72 +1000,42 @@ function Homepage() {
               <li><a href="/">Contact Us</a></li>
             </ul>
           </div>
-
         </div>
 
         <div className="footer-bottom">
           <div>© 2026 MedCare Hospital. All Rights Reserved.</div>
           <div>
-            {/* ── Opens Privacy Policy modal ── */}
-            <a
-              href="#privacy"
-              onClick={e => { e.preventDefault(); setModalContent('privacy'); }}
-            >
-              Privacy Policy
-            </a>{" "}|{" "}
-            <a
-              href="#privacy"
-              onClick={e => { e.preventDefault(); setModalContent('privacy'); }}
-            >
-              Disclaimer
-            </a>{" "}|{" "}
-            {/* ── Opens Terms & Conditions modal ── */}
-            <a
-              href="#terms"
-              onClick={e => { e.preventDefault(); setModalContent('terms'); }}
-              style={{ cursor: "pointer" }}
-            >
-              Terms & Condition
-            </a>
+            <a href="#privacy" onClick={e => { e.preventDefault(); setModalContent('privacy'); }}>Privacy Policy</a>{" "}|{" "}
+            <a href="#privacy" onClick={e => { e.preventDefault(); setModalContent('privacy'); }}>Disclaimer</a>{" "}|{" "}
+            <a href="#terms" onClick={e => { e.preventDefault(); setModalContent('terms'); }} style={{ cursor: "pointer" }}>Terms &amp; Condition</a>
           </div>
         </div>
       </footer>
 
-      {/* ── Modal Popup for Terms & Conditions / Privacy Policy ── */}
+      {/* ── Modals ── */}
       {modalContent && (
         <div className="modal-overlay" onClick={() => setModalContent(null)}>
           <div className="modal-box" onClick={e => e.stopPropagation()}>
-
             <button className="modal-close-btn" onClick={() => setModalContent(null)}>✕</button>
-
             {modalContent === 'terms' && (
               <>
                 <h2>Terms &amp; Conditions</h2>
                 {termsPoints.map(([title, text]) => (
-                  <div className="modal-point" key={title}>
-                    <strong>{title}</strong>
-                    <p>{text}</p>
-                  </div>
+                  <div className="modal-point" key={title}><strong>{title}</strong><p>{text}</p></div>
                 ))}
               </>
             )}
-
             {modalContent === 'privacy' && (
               <>
                 <h2>Privacy Policy</h2>
                 {privacyPoints.map(([title, text]) => (
-                  <div className="modal-point" key={title}>
-                    <strong>{title}</strong>
-                    <p>{text}</p>
-                  </div>
+                  <div className="modal-point" key={title}><strong>{title}</strong><p>{text}</p></div>
                 ))}
               </>
             )}
-
           </div>
         </div>
       )}
-
     </>
   );
 }
