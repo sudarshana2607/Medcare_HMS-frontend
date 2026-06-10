@@ -614,53 +614,78 @@ function DoctorDashboard() {
 
 
           {/* ── PROFILE ── */}
-          {activePage === "profile" && (
-            <>
-              <div className="mc-page-header">
-                <h1>My Profile</h1>
-                <p>Your account information</p>
-              </div>
-              <div className="mc-panel">
-                <div className="mc-panel-body">
-                  <div className="mc-form">
-                    <div className="mc-form-row two-col">
-                      <div className="mc-form-group">
-                        <label>First Name</label>
-                        <input className="mc-input" value={profileForm.firstname}
-                          onChange={(e) => setProfileForm({ ...profileForm, firstname: e.target.value })} />
-                      </div>
-                      <div className="mc-form-group">
-                        <label>Last Name</label>
-                        <input className="mc-input" value={profileForm.lastname}
-                          onChange={(e) => setProfileForm({ ...profileForm, lastname: e.target.value })} />
-                      </div>
-                    </div>
-                    <div className="mc-form-row two-col">
-                      <div className="mc-form-group">
-                        <label>Email</label>
-                        <input className="mc-input" type="email" value={profileForm.email}
-                          onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} />
-                      </div>
-                      <div className="mc-form-group">
-                        <label>Phone</label>
-                        <input className="mc-input" value={profileForm.phone}
-                          onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} />
-                      </div>
-                    </div>
-                    <div className="mc-form-group">
-                      <label>Department</label>
-                      <input className="mc-input" value={profileForm.department}
-                        onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })} />
-                    </div>
-                    <div style={{ background: "#f0f9ff", padding: "1rem", borderRadius: 8, marginTop: "0.5rem" }}>
-                      <p style={{ margin: 0, fontWeight: 600 }}>Dr. {doctor?.firstname} {doctor?.lastname}</p>
-                      <p style={{ margin: "4px 0 0", color: "#666", fontSize: "0.85rem" }}>{doctor?.email} · Role: {doctor?.role}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+{activePage === "profile" && (
+  <>
+    <div className="mc-page-header">
+      <h1>My Profile</h1>
+      <p>Your account information</p>
+    </div>
+    <div className="mc-panel">
+      <div className="mc-panel-body">
+        <div className="mc-form">
+          <div className="mc-form-row two-col">
+            <div className="mc-form-group">
+              <label>First Name</label>
+              <input className="mc-input" value={profileForm.firstname}
+                onChange={(e) => setProfileForm({ ...profileForm, firstname: e.target.value })} />
+            </div>
+            <div className="mc-form-group">
+              <label>Last Name</label>
+              <input className="mc-input" value={profileForm.lastname}
+                onChange={(e) => setProfileForm({ ...profileForm, lastname: e.target.value })} />
+            </div>
+          </div>
+          <div className="mc-form-row two-col">
+            <div className="mc-form-group">
+              <label>Email</label>
+              <input className="mc-input" type="email" value={profileForm.email}
+                onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} />
+            </div>
+            <div className="mc-form-group">
+              <label>Phone</label>
+              <input className="mc-input" value={profileForm.phone}
+                onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })} />
+            </div>
+          </div>
+          <div className="mc-form-group">
+            <label>Department</label>
+            <input className="mc-input" value={profileForm.department}
+              onChange={(e) => setProfileForm({ ...profileForm, department: e.target.value })} />
+          </div>
+          <div style={{ background: "#f0f9ff", padding: "1rem", borderRadius: 8, marginTop: "0.5rem" }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>Dr. {doctor?.firstname} {doctor?.lastname}</p>
+            <p style={{ margin: "4px 0 0", color: "#666", fontSize: "0.85rem" }}>{doctor?.email} · Role: {doctor?.role}</p>
+          </div>
+
+          {/* ── SAVE BUTTON ── */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
+            <button
+              className="mc-btn mc-btn-primary"
+              onClick={async () => {
+                try {
+                  await updateDoc(doc(db, "doctors", doctor.id), {
+                    firstname: profileForm.firstname,
+                    lastname: profileForm.lastname,
+                    email: profileForm.email,
+                    phone: profileForm.phone,
+                    department: profileForm.department,
+                  });
+                  alert("Profile saved successfully.");
+                } catch (err) {
+                  console.error(err);
+                  alert("Failed to save profile.");
+                }
+              }}
+            >
+              Save Changes
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </>
+)}
 
           {/* ── NOTIFICATIONS ── */}
           {activePage === "notifications" && (

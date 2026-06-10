@@ -5,9 +5,6 @@ import axios from "axios";
 
 const API = "https://medcare-hms-backend.onrender.com/api";
 
-// ─────────────────────────────────────────
-//  SHARED HELPERS
-// ─────────────────────────────────────────
 function Badge({ status }) {
   if (!status) return <span className="mc-badge">—</span>;
   const s = status.toLowerCase().replace(/\s/g, "");
@@ -46,7 +43,6 @@ function EmptyRow({ cols, message = "No records found" }) {
   );
 }
 
-// Inline feedback message
 function Msg({ text }) {
   if (!text) return null;
   const isError = text.startsWith("❌");
@@ -62,12 +58,6 @@ function Msg({ text }) {
   );
 }
 
-// ─────────────────────────────────────────
-//  CUSTOM FETCH HOOK
-//  Normalises all backend shapes:
-//   { medicines:[…] } | { prescriptions:[…] } |
-//   { bills:[…] } | { suppliers:[…] } | { data:[…] } | [...]
-// ─────────────────────────────────────────
 function useFetch(url, defaultVal = []) {
   const [data, setData]       = useState(defaultVal);
   const [loading, setLoading] = useState(true);
@@ -99,9 +89,6 @@ function useFetch(url, defaultVal = []) {
   return { data, loading, error, refetch };
 }
 
-// ─────────────────────────────────────────
-//  ADD-BOX (collapsible form panel)
-// ─────────────────────────────────────────
 function AddBox({ title, children, open, onToggle }) {
   return (
     <div className="mc-panel" style={{ marginBottom: 20 }}>
@@ -119,57 +106,39 @@ function AddBox({ title, children, open, onToggle }) {
   );
 }
 
-// ─────────────────────────────────────────
-//  MAIN COMPONENT
-// ─────────────────────────────────────────
 function PharmacyDashboard() {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState("dashboard");
 
-  // ── Data (correct API endpoints matching backend routes) ──
-  // GET /api/pharmacy/medicines
   const { data: medicines,     loading: medLoading,   refetch: refetchMeds }  = useFetch(`${API}/pharmacy/medicines`);
-  // GET /api/pharmacy/prescriptions
   const { data: prescriptions, loading: rxLoading,    refetch: refetchRx }    = useFetch(`${API}/pharmacy/prescriptions`);
-  // GET /api/pharmacy/bills
   const { data: bills,         loading: billLoading,  refetch: refetchBills } = useFetch(`${API}/pharmacy/bills`);
-  // GET /api/pharmacy/suppliers
   const { data: suppliers,     loading: supLoading,   refetch: refetchSup }   = useFetch(`${API}/pharmacy/suppliers`);
 
   const lowStockItems = medicines.filter((m) => (m.quantity ?? 0) < 20);
 
-  // ── Open/close state for add-boxes ──
   const [openBox, setOpenBox] = useState(null);
   const toggleBox = (name) => setOpenBox((prev) => (prev === name ? null : name));
 
-  // ─────────────────────────────────────────
-  //  FORM STATES
-  // ─────────────────────────────────────────
-
-  // Dispense form
   const [dispenseForm, setDispenseForm]       = useState({ patientId: "", medicineName: "", quantity: "" });
   const [dispenseLoading, setDispenseLoading] = useState(false);
   const [dispenseMsg, setDispenseMsg]         = useState("");
 
-  // Add medicine form
   const EMPTY_MED = { medicineName: "", category: "", quantity: "", price: "", supplier: "", expiryDate: "", batchNumber: "" };
   const [medForm, setMedForm]     = useState(EMPTY_MED);
   const [medMsg, setMedMsg]       = useState("");
   const [medSaving, setMedSaving] = useState(false);
 
-  // Add supplier form
   const EMPTY_SUP = { name: "", email: "", phone: "", address: "", gstNumber: "" };
   const [supForm, setSupForm]     = useState(EMPTY_SUP);
   const [supMsg, setSupMsg]       = useState("");
   const [supSaving, setSupSaving] = useState(false);
 
-  // Add bill form
   const EMPTY_BILL = { patientName: "", medicine: "", quantity: "", unitPrice: "", paymentMethod: "Cash" };
   const [billForm, setBillForm]     = useState(EMPTY_BILL);
   const [billMsg, setBillMsg]       = useState("");
   const [billSaving, setBillSaving] = useState(false);
 
-  /* ── Edit modal states ── */
   const [editMedModal,  setEditMedModal]  = useState(false);
   const [editMedData,   setEditMedData]   = useState({});
   const [editMedMsg,    setEditMedMsg]    = useState("");
@@ -182,23 +151,16 @@ function PharmacyDashboard() {
   const [editBillData,   setEditBillData]   = useState({});
   const [editBillMsg,    setEditBillMsg]    = useState("");
 
-  // Add prescription form
   const EMPTY_RX = { patientName: "", doctorName: "", medicine: "", quantity: "", dosage: "", instructions: "" };
   const [rxForm, setRxForm]     = useState(EMPTY_RX);
   const [rxMsg, setRxMsg]       = useState("");
   const [rxSaving, setRxSaving] = useState(false);
 
-  // Settings form
   const [settings, setSettings]   = useState({ deptName: "Pharmacy", email: "pharmacy@medcare.com", phone: "", address: "", lowStockThreshold: 20 });
   const [settingsMsg, setSettingsMsg] = useState("");
 
   const handleLogout = () => navigate("/");
 
-  // ─────────────────────────────────────────
-  //  HANDLERS
-  // ─────────────────────────────────────────
-
-  // Dispense — POST /api/pharmacy/medicines/dispense
   const handleDispenseChange = (e) =>
     setDispenseForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -211,7 +173,6 @@ function PharmacyDashboard() {
     setDispenseLoading(true);
     setDispenseMsg("");
     try {
-      // POST /api/pharmacy/medicines/dispense
       await axios.post(`${API}/pharmacy/medicines/dispense`, {
         patientId,
         medicineName,
@@ -227,7 +188,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Add medicine — POST /api/pharmacy/medicines
   const handleMedChange = (e) =>
     setMedForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -239,7 +199,6 @@ function PharmacyDashboard() {
     setMedSaving(true);
     setMedMsg("");
     try {
-      // POST /api/pharmacy/medicines
       await axios.post(`${API}/pharmacy/medicines`, {
         ...medForm,
         quantity: Number(medForm.quantity),
@@ -256,7 +215,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Add supplier — POST /api/pharmacy/suppliers
   const handleSupChange = (e) =>
     setSupForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -268,7 +226,6 @@ function PharmacyDashboard() {
     setSupSaving(true);
     setSupMsg("");
     try {
-      // POST /api/pharmacy/suppliers
       await axios.post(`${API}/pharmacy/suppliers`, supForm);
       setSupMsg("✅ Supplier added.");
       setSupForm(EMPTY_SUP);
@@ -281,7 +238,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Add bill — POST /api/pharmacy/bills
   const handleBillChange = (e) =>
     setBillForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -296,12 +252,11 @@ function PharmacyDashboard() {
       const qty   = Number(billForm.quantity);
       const price = Number(billForm.unitPrice);
       const total = qty * price;
-      // POST /api/pharmacy/bills
       await axios.post(`${API}/pharmacy/bills`, {
         patientName: billForm.patientName,
         medicines: [{ name: billForm.medicine, quantity: qty, unitPrice: price }],
         totalAmount: total,
-        paid: total,                      // assume full payment at counter
+        paid: total,
         paymentMethod: billForm.paymentMethod,
       });
       setBillMsg("✅ Bill created.");
@@ -315,7 +270,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Add prescription — POST /api/pharmacy/prescriptions
   const handleRxChange = (e) =>
     setRxForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -327,7 +281,6 @@ function PharmacyDashboard() {
     setRxSaving(true);
     setRxMsg("");
     try {
-      // POST /api/pharmacy/prescriptions
       await axios.post(`${API}/pharmacy/prescriptions`, {
         ...rxForm,
         quantity: Number(rxForm.quantity),
@@ -343,7 +296,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Dispense a prescription — PUT /api/pharmacy/prescriptions/:id/dispense
   const handleDispenseRx = async (id) => {
     try {
       await axios.put(`${API}/pharmacy/prescriptions/${id}/dispense`);
@@ -354,7 +306,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Delete medicine — DELETE /api/pharmacy/medicines/:id
   const handleDeleteMed = async (id) => {
     if (!window.confirm("Delete this medicine?")) return;
     try {
@@ -365,7 +316,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Delete supplier — DELETE /api/pharmacy/suppliers/:id
   const handleDeleteSup = async (id) => {
     if (!window.confirm("Remove this supplier?")) return;
     try {
@@ -376,7 +326,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Edit medicine — PUT /api/pharmacy/medicines/:id
   const handleEditMed = async () => {
     if (!editMedData._id || !editMedData.medicineName) {
       setEditMedMsg("⚠️ Medicine name is required.");
@@ -400,7 +349,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Edit supplier — PUT /api/pharmacy/suppliers/:id
   const handleEditSup = async () => {
     if (!editSupData._id || !editSupData.name) {
       setEditSupMsg("⚠️ Supplier name is required.");
@@ -420,7 +368,6 @@ function PharmacyDashboard() {
     }
   };
 
-  // Edit bill — PUT /api/pharmacy/bills/:id
   const handleEditBill = async () => {
     if (!editBillData._id || !editBillData.patientName) {
       setEditBillMsg("⚠️ Patient name is required.");
@@ -455,9 +402,9 @@ function PharmacyDashboard() {
     { page: "settings",     label: "Settings",              icon: "⚙️" },
   ];
 
-  // ─────────────────────────────────────────
-  //  RENDER
-  // ─────────────────────────────────────────
+  const INPUT = { width:"100%", padding:"9px 12px", borderRadius:8, border:"1.5px solid #e5e7eb", fontSize:"0.9rem", boxSizing:"border-box" };
+  const LABEL = { display:"block", fontWeight:600, fontSize:"0.82rem", marginBottom:4 };
+
   return (
     <>
       <nav className="mc-nav">
@@ -483,7 +430,6 @@ function PharmacyDashboard() {
 
         <main className="mc-content">
 
-          {/* ══ PROFILE ══ */}
           {activePage === "profile" && (
             <>
               <div className="mc-page-header"><h1>Pharmacy Staff Profile</h1></div>
@@ -501,7 +447,6 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ NOTIFICATIONS ══ */}
           {activePage === "notifications" && (
             <>
               <div className="mc-page-header"><h1>Notifications</h1></div>
@@ -522,7 +467,6 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ DASHBOARD ══ */}
           {activePage === "dashboard" && (
             <>
               <div className="mc-page-header">
@@ -558,7 +502,6 @@ function PharmacyDashboard() {
                 </div>
               </div>
 
-              {/* Recent Prescriptions */}
               <div className="mc-panel">
                 <div className="mc-panel-header">
                   <h2>Recent Prescriptions <span>Latest 8</span></h2>
@@ -586,7 +529,6 @@ function PharmacyDashboard() {
                 </div>
               </div>
 
-              {/* Recent Bills */}
               <div className="mc-panel">
                 <div className="mc-panel-header">
                   <h2>Recent Bills <span>{bills.length} records</span></h2>
@@ -616,7 +558,6 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ PRESCRIPTION REQUESTS ══ */}
           {activePage === "prescription" && (
             <>
               <div className="mc-page-header">
@@ -624,12 +565,7 @@ function PharmacyDashboard() {
                 <p>View, add, and dispense prescriptions</p>
               </div>
 
-              {/* ADD NEW PRESCRIPTION BOX */}
-              <AddBox
-                title="➕ Add New Prescription"
-                open={openBox === "rx"}
-                onToggle={() => toggleBox("rx")}
-              >
+              <AddBox title="➕ Add New Prescription" open={openBox === "rx"} onToggle={() => toggleBox("rx")}>
                 <div className="mc-form">
                   <div className="mc-form-row">
                     <div className="mc-form-group">
@@ -668,7 +604,6 @@ function PharmacyDashboard() {
                 </div>
               </AddBox>
 
-              {/* PRESCRIPTION TABLE */}
               <div className="mc-panel">
                 <div className="mc-panel-header">
                   <h2>All Prescriptions <span>{prescriptions.length} records</span></h2>
@@ -696,7 +631,6 @@ function PharmacyDashboard() {
                                <button
                                  className="mc-btn"
                                  style={{ padding: "4px 10px", fontSize: 12 }}
-                                 // PUT /api/pharmacy/prescriptions/:id/dispense
                                  onClick={() => handleDispenseRx(p._id)}
                                >
                                  Dispense
@@ -717,7 +651,6 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ DISPENSE ══ */}
           {activePage === "dispense" && (
             <>
               <div className="mc-page-header"><h1>Issue Medicine</h1><p>Dispense medicine directly by name — deducts from inventory</p></div>
@@ -744,7 +677,6 @@ function PharmacyDashboard() {
                 </div>
               </div></div>
 
-              {/* Show current stock for quick reference */}
               <div className="mc-panel">
                 <div className="mc-panel-header"><h2>Quick Stock Reference</h2></div>
                 <div className="mc-table-wrap">
@@ -768,12 +700,10 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ INVENTORY ══ */}
           {activePage === "inventory" && (
             <>
               <div className="mc-page-header"><h1>Inventory</h1><p>All medicines in stock — add new entries below</p></div>
 
-              {/* Summary cards */}
               <div className="mc-cards">
                 <div className="mc-card sky">
                   <div className="mc-card-icon">📦</div>
@@ -794,12 +724,7 @@ function PharmacyDashboard() {
                 </div>
               </div>
 
-              {/* ADD MEDICINE BOX */}
-              <AddBox
-                title="➕ Add Medicine to Inventory"
-                open={openBox === "med"}
-                onToggle={() => toggleBox("med")}
-              >
+              <AddBox title="➕ Add Medicine to Inventory" open={openBox === "med"} onToggle={() => toggleBox("med")}>
                 <div className="mc-form">
                   <div className="mc-form-row">
                     <div className="mc-form-group">
@@ -842,7 +767,6 @@ function PharmacyDashboard() {
                 </div>
               </AddBox>
 
-              {/* MEDICINE TABLE */}
               <div className="mc-panel">
                 <div className="mc-panel-header">
                   <h2>Medicine Stock <span>{medicines.length} items</span></h2>
@@ -889,7 +813,6 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ LOW STOCK ALERTS ══ */}
           {activePage === "lowstock" && (
             <>
               <div className="mc-page-header">
@@ -897,7 +820,6 @@ function PharmacyDashboard() {
                 <p>Items with fewer than 20 units — reorder required</p>
               </div>
 
-              {/* Summary */}
               <div className="mc-cards">
                 <div className="mc-card rose">
                   <div className="mc-card-icon">🚨</div>
@@ -930,7 +852,6 @@ function PharmacyDashboard() {
                     <p style={{ color: "var(--text-secondary)" }}>✅ All items are sufficiently stocked.</p>
                   ) : (
                     <>
-                      {/* Critical first */}
                       {lowStockItems
                         .slice()
                         .sort((a, b) => (a.quantity ?? 0) - (b.quantity ?? 0))
@@ -972,7 +893,6 @@ function PharmacyDashboard() {
                 </div>
               </div>
 
-              {/* Quick reorder tip */}
               {lowStockItems.length > 0 && (
                 <div className="mc-panel">
                   <div className="mc-panel-header"><h2>💡 Reorder Tip</h2></div>
@@ -987,17 +907,11 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ SUPPLIERS ══ */}
           {activePage === "suppliers" && (
             <>
               <div className="mc-page-header"><h1>Suppliers</h1><p>Registered pharmacy suppliers — add new ones below</p></div>
 
-              {/* ADD SUPPLIER BOX */}
-              <AddBox
-                title="➕ Add New Supplier"
-                open={openBox === "sup"}
-                onToggle={() => toggleBox("sup")}
-              >
+              <AddBox title="➕ Add New Supplier" open={openBox === "sup"} onToggle={() => toggleBox("sup")}>
                 <div className="mc-form">
                   <div className="mc-form-row">
                     <div className="mc-form-group">
@@ -1030,7 +944,6 @@ function PharmacyDashboard() {
                 </div>
               </AddBox>
 
-              {/* SUPPLIER TABLE */}
               <div className="mc-panel">
                 <div className="mc-panel-header">
                   <h2>Supplier List <span>{suppliers.length} records</span></h2>
@@ -1075,12 +988,10 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ BILLING ══ */}
           {activePage === "billing" && (
             <>
               <div className="mc-page-header"><h1>Billing Support</h1><p>Pharmacy medicine billing records</p></div>
 
-              {/* Summary */}
               <div className="mc-cards">
                 <div className="mc-card teal">
                   <div className="mc-card-icon">💳</div>
@@ -1106,12 +1017,7 @@ function PharmacyDashboard() {
                 </div>
               </div>
 
-              {/* ADD BILL BOX */}
-              <AddBox
-                title="➕ Create New Bill"
-                open={openBox === "bill"}
-                onToggle={() => toggleBox("bill")}
-              >
+              <AddBox title="➕ Create New Bill" open={openBox === "bill"} onToggle={() => toggleBox("bill")}>
                 <div className="mc-form">
                   <div className="mc-form-row">
                     <div className="mc-form-group">
@@ -1155,7 +1061,6 @@ function PharmacyDashboard() {
                 </div>
               </AddBox>
 
-              {/* BILLS TABLE */}
               <div className="mc-panel">
                 <div className="mc-panel-header">
                   <h2>All Bills <span>{bills.length} records</span></h2>
@@ -1191,12 +1096,10 @@ function PharmacyDashboard() {
             </>
           )}
 
-          {/* ══ SETTINGS ══ */}
           {activePage === "settings" && (
             <>
               <div className="mc-page-header"><h1>Settings</h1><p>Pharmacy department configuration</p></div>
 
-              {/* Department Info */}
               <div className="mc-panel">
                 <div className="mc-panel-header"><h2>Department Information</h2></div>
                 <div className="mc-panel-body">
@@ -1204,64 +1107,38 @@ function PharmacyDashboard() {
                     <div className="mc-form-row">
                       <div className="mc-form-group">
                         <label>Department Name</label>
-                        <input
-                          value={settings.deptName}
-                          onChange={e => setSettings(p => ({ ...p, deptName: e.target.value }))}
-                          placeholder="Department name"
-                        />
+                        <input value={settings.deptName} onChange={e => setSettings(p => ({ ...p, deptName: e.target.value }))} placeholder="Department name" />
                       </div>
                       <div className="mc-form-group">
                         <label>Contact Email</label>
-                        <input
-                          type="email"
-                          value={settings.email}
-                          onChange={e => setSettings(p => ({ ...p, email: e.target.value }))}
-                          placeholder="email@medcare.com"
-                        />
+                        <input type="email" value={settings.email} onChange={e => setSettings(p => ({ ...p, email: e.target.value }))} placeholder="email@medcare.com" />
                       </div>
                     </div>
                     <div className="mc-form-row">
                       <div className="mc-form-group">
                         <label>Phone</label>
-                        <input
-                          value={settings.phone}
-                          onChange={e => setSettings(p => ({ ...p, phone: e.target.value }))}
-                          placeholder="+91 ..."
-                        />
+                        <input value={settings.phone} onChange={e => setSettings(p => ({ ...p, phone: e.target.value }))} placeholder="+91 ..." />
                       </div>
                       <div className="mc-form-group">
                         <label>Address</label>
-                        <input
-                          value={settings.address}
-                          onChange={e => setSettings(p => ({ ...p, address: e.target.value }))}
-                          placeholder="Hospital address"
-                        />
+                        <input value={settings.address} onChange={e => setSettings(p => ({ ...p, address: e.target.value }))} placeholder="Hospital address" />
                       </div>
                     </div>
                     <Msg text={settingsMsg} />
-                    <button
-                      className="mc-btn"
-                      onClick={() => setSettingsMsg("✅ Settings saved locally.")}
-                    >
+                    <button className="mc-btn" onClick={() => setSettingsMsg("✅ Settings saved locally.")}>
                       💾 Save Changes
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Stock Threshold */}
               <div className="mc-panel">
                 <div className="mc-panel-header"><h2>Stock Alert Threshold</h2></div>
                 <div className="mc-panel-body">
                   <div className="mc-form">
                     <div className="mc-form-group" style={{ maxWidth: 300 }}>
                       <label>Low Stock Alert Threshold (units)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={settings.lowStockThreshold}
-                        onChange={e => setSettings(p => ({ ...p, lowStockThreshold: e.target.value }))}
-                      />
+                      <input type="number" min="1" value={settings.lowStockThreshold} onChange={e => setSettings(p => ({ ...p, lowStockThreshold: e.target.value }))} />
                     </div>
                     <p style={{ color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, fontSize: 13 }}>
                       Medicines with quantity below this value will appear in Low Stock Alerts.
@@ -1273,7 +1150,6 @@ function PharmacyDashboard() {
                 </div>
               </div>
 
-              {/* Quick Info */}
               <div className="mc-panel">
                 <div className="mc-panel-header"><h2>System Info</h2></div>
                 <div className="mc-panel-body">
@@ -1293,90 +1169,152 @@ function PharmacyDashboard() {
       </div>
 
       {/* ══ EDIT MEDICINE MODAL ══ */}
-{editMedModal && (
-  <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center" }}>
-    <div style={{ background:"#fff",borderRadius:12,padding:"2rem",width:"100%",maxWidth:440,boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.2rem" }}>
-        <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Medicine</h3>
-        <button onClick={() => setEditMedModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
-      </div>
-      {editMedMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editMedMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editMedMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editMedMsg}</div>}
-      <div style={{ marginBottom:"0.8rem" }}><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Medicine Name</label>
-        <input style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-          value={editMedData.medicineName||""} onChange={e => setEditMedData({...editMedData,medicineName:e.target.value})} /></div>
-      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
-        <div><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Quantity</label>
-          <input type="number" style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-            value={editMedData.quantity||0} onChange={e => setEditMedData({...editMedData,quantity:Number(e.target.value)})} /></div>
-        <div><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Supplier</label>
-          <input style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-            value={editMedData.supplier||""} onChange={e => setEditMedData({...editMedData,supplier:e.target.value})} /></div>
-      </div>
-      <div style={{ display:"flex",gap:"0.75rem" }}>
-        <button className="mc-btn" style={{ flex:1 }} onClick={handleEditMed}>💾 Save</button>
-        <button onClick={() => setEditMedModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
-      </div>
-    </div>
-  </div>
-)}
+      {editMedModal && (
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center" }}>
+          <div style={{ background:"#fff",borderRadius:12,padding:"2rem",width:"100%",maxWidth:480,boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.2rem" }}>
+              <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Medicine</h3>
+              <button onClick={() => setEditMedModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
+            </div>
+            {editMedMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editMedMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editMedMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editMedMsg}</div>}
+
+            {/* Medicine Name */}
+            <div style={{ marginBottom:"0.8rem" }}>
+              <label style={LABEL}>Medicine Name</label>
+              <input style={INPUT} value={editMedData.medicineName||""} onChange={e => setEditMedData({...editMedData,medicineName:e.target.value})} />
+            </div>
+
+            {/* Quantity + Category */}
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
+              <div>
+                <label style={LABEL}>Quantity</label>
+                <input type="number" style={INPUT} value={editMedData.quantity||0} onChange={e => setEditMedData({...editMedData,quantity:Number(e.target.value)})} />
+              </div>
+              <div>
+                <label style={LABEL}>Category</label>
+                <input style={INPUT} value={editMedData.category||""} onChange={e => setEditMedData({...editMedData,category:e.target.value})} />
+              </div>
+            </div>
+
+            {/* Price + Supplier */}
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
+              <div>
+                <label style={LABEL}>Price (₹)</label>
+                <input type="number" style={INPUT} value={editMedData.price||""} onChange={e => setEditMedData({...editMedData,price:Number(e.target.value)})} />
+              </div>
+              <div>
+                <label style={LABEL}>Supplier</label>
+                <input style={INPUT} value={editMedData.supplier||""} onChange={e => setEditMedData({...editMedData,supplier:e.target.value})} />
+              </div>
+            </div>
+
+            {/* Expiry Date */}
+            <div style={{ marginBottom:"0.8rem" }}>
+              <label style={LABEL}>Expiry Date</label>
+              <input type="date" style={INPUT} value={editMedData.expiryDate ? editMedData.expiryDate.slice(0,10) : ""} onChange={e => setEditMedData({...editMedData,expiryDate:e.target.value})} />
+            </div>
+
+            <div style={{ display:"flex",gap:"0.75rem" }}>
+              <button className="mc-btn" style={{ flex:1 }} onClick={handleEditMed}>💾 Save</button>
+              <button onClick={() => setEditMedModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ EDIT SUPPLIER MODAL ══ */}
       {editSupModal && (
-  <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center" }}>
-    <div style={{ background:"#fff",borderRadius:12,padding:"2rem",width:"100%",maxWidth:440,boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.2rem" }}>
-        <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Supplier</h3>
-        <button onClick={() => setEditSupModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
-      </div>
-      {editSupMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editSupMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editSupMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editSupMsg}</div>}
-      <div style={{ marginBottom:"0.8rem" }}><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Supplier Name</label>
-        <input style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-          value={editSupData.name||""} onChange={e => setEditSupData({...editSupData,name:e.target.value})} /></div>
-      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
-        <div><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Phone</label>
-          <input style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-            value={editSupData.phone||""} onChange={e => setEditSupData({...editSupData,phone:e.target.value})} /></div>
-        <div><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Medicine</label>
-          <input style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-            value={editSupData.medicine||""} onChange={e => setEditSupData({...editSupData,medicine:e.target.value})} /></div>
-      </div>
-      <div style={{ display:"flex",gap:"0.75rem" }}>
-        <button className="mc-btn" style={{ flex:1 }} onClick={handleEditSup}>💾 Save</button>
-        <button onClick={() => setEditSupModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
-      </div>
-    </div>
-  </div>
-)}
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center" }}>
+          <div style={{ background:"#fff",borderRadius:12,padding:"2rem",width:"100%",maxWidth:480,boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.2rem" }}>
+              <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Supplier</h3>
+              <button onClick={() => setEditSupModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
+            </div>
+            {editSupMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editSupMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editSupMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editSupMsg}</div>}
+
+            {/* Supplier Name */}
+            <div style={{ marginBottom:"0.8rem" }}>
+              <label style={LABEL}>Supplier Name</label>
+              <input style={INPUT} value={editSupData.name||""} onChange={e => setEditSupData({...editSupData,name:e.target.value})} />
+            </div>
+
+            {/* Phone + Email */}
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
+              <div>
+                <label style={LABEL}>Phone</label>
+                <input style={INPUT} value={editSupData.phone||""} onChange={e => setEditSupData({...editSupData,phone:e.target.value})} />
+              </div>
+              <div>
+                <label style={LABEL}>Email</label>
+                <input type="email" style={INPUT} value={editSupData.email||""} onChange={e => setEditSupData({...editSupData,email:e.target.value})} />
+              </div>
+            </div>
+
+            {/* GST + Address */}
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
+              <div>
+                <label style={LABEL}>GST Number</label>
+                <input style={INPUT} value={editSupData.gstNumber||""} onChange={e => setEditSupData({...editSupData,gstNumber:e.target.value})} />
+              </div>
+              <div>
+                <label style={LABEL}>Address</label>
+                <input style={INPUT} value={editSupData.address||""} onChange={e => setEditSupData({...editSupData,address:e.target.value})} />
+              </div>
+            </div>
+
+            <div style={{ display:"flex",gap:"0.75rem" }}>
+              <button className="mc-btn" style={{ flex:1 }} onClick={handleEditSup}>💾 Save</button>
+              <button onClick={() => setEditSupModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══ EDIT BILL MODAL ══ */}
       {editBillModal && (
-  <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center" }}>
-    <div style={{ background:"#fff",borderRadius:12,padding:"2rem",width:"100%",maxWidth:440,boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
-      <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.2rem" }}>
-        <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Bill</h3>
-        <button onClick={() => setEditBillModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
-      </div>
-      {editBillMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editBillMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editBillMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editBillMsg}</div>}
-      <div style={{ marginBottom:"0.8rem" }}><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Patient Name</label>
-        <input style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-          value={editBillData.patientName||editBillData.patient||""} onChange={e => setEditBillData({...editBillData,patientName:e.target.value,patient:e.target.value})} /></div>
-      <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
-        <div><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Amount (₹)</label>
-          <input type="number" style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-            value={editBillData.totalAmount||editBillData.amount||0} onChange={e => setEditBillData({...editBillData,totalAmount:Number(e.target.value),amount:Number(e.target.value)})} /></div>
-        <div><label style={{ display:"block",fontWeight:600,fontSize:"0.82rem",marginBottom:4 }}>Status</label>
-          <select style={{ width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e5e7eb",fontSize:"0.9rem",boxSizing:"border-box" }}
-            value={editBillData.status||"Pending"} onChange={e => setEditBillData({...editBillData,status:e.target.value})}>
-            <option>Pending</option><option>Paid</option><option>Cancelled</option>
-          </select></div>
-      </div>
-      <div style={{ display:"flex",gap:"0.75rem" }}>
-        <button className="mc-btn" style={{ flex:1 }} onClick={handleEditBill}>💾 Save</button>
-        <button onClick={() => setEditBillModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
-      </div>
-    </div>
-  </div>
-)}
+        <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center" }}>
+          <div style={{ background:"#fff",borderRadius:12,padding:"2rem",width:"100%",maxWidth:480,boxShadow:"0 20px 60px rgba(0,0,0,0.2)" }}>
+            <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.2rem" }}>
+              <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Bill</h3>
+              <button onClick={() => setEditBillModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
+            </div>
+            {editBillMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editBillMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editBillMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editBillMsg}</div>}
+
+            {/* Patient Name */}
+            <div style={{ marginBottom:"0.8rem" }}>
+              <label style={LABEL}>Patient Name</label>
+              <input style={INPUT} value={editBillData.patientName||editBillData.patient||""} onChange={e => setEditBillData({...editBillData,patientName:e.target.value,patient:e.target.value})} />
+            </div>
+
+            {/* Amount + Status */}
+            <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
+              <div>
+                <label style={LABEL}>Amount (₹)</label>
+                <input type="number" style={INPUT} value={editBillData.totalAmount||editBillData.amount||0} onChange={e => setEditBillData({...editBillData,totalAmount:Number(e.target.value),amount:Number(e.target.value)})} />
+              </div>
+              <div>
+                <label style={LABEL}>Status</label>
+                <select style={INPUT} value={editBillData.status||"Pending"} onChange={e => setEditBillData({...editBillData,status:e.target.value})}>
+                  <option>Pending</option><option>Paid</option><option>Cancelled</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Payment Method */}
+            <div style={{ marginBottom:"0.8rem" }}>
+              <label style={LABEL}>Payment Method</label>
+              <select style={INPUT} value={editBillData.paymentMethod||"Cash"} onChange={e => setEditBillData({...editBillData,paymentMethod:e.target.value})}>
+                <option>Cash</option><option>Card</option><option>UPI</option><option>Insurance</option><option>Other</option>
+              </select>
+            </div>
+
+            <div style={{ display:"flex",gap:"0.75rem" }}>
+              <button className="mc-btn" style={{ flex:1 }} onClick={handleEditBill}>💾 Save</button>
+              <button onClick={() => setEditBillModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );
