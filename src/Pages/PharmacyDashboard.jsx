@@ -58,6 +58,10 @@ function Msg({ text }) {
   );
 }
 
+// ✅ FIX: useFetch now correctly extracts arrays from wrapped responses
+// Backend now returns { medicines: [] }, { prescriptions: [] }, { bills: [] }, { suppliers: [] }
+// The existing fallback chain r?.medicines ?? r?.prescriptions ?? r?.bills ?? r?.suppliers
+// now works correctly because the backend wraps them.
 function useFetch(url, defaultVal = []) {
   const [data, setData]       = useState(defaultVal);
   const [loading, setLoading] = useState(true);
@@ -69,18 +73,21 @@ function useFetch(url, defaultVal = []) {
     axios.get(url)
       .then((res) => {
         const r = res.data;
+        // ✅ r?.medicines / r?.prescriptions / r?.bills / r?.suppliers
+        // now correctly resolve because backend wraps responses
         const payload =
           r?.medicines ??
           r?.prescriptions ??
           r?.bills ??
           r?.suppliers ??
           r?.data ??
-          r;
+          (Array.isArray(r) ? r : defaultVal);  // ✅ FIX: safe fallback if r is unexpectedly a plain array
         setData(Array.isArray(payload) ? payload : defaultVal);
       })
       .catch((err) => {
         console.error(`[useFetch] ${url}:`, err.message);
         setError(err.message);
+        setData(defaultVal); // ✅ FIX: reset to empty array on error, prevents crash
       })
       .finally(() => setLoading(false));
   }, [url]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -120,47 +127,61 @@ function PharmacyDashboard() {
   const [openBox, setOpenBox] = useState(null);
   const toggleBox = (name) => setOpenBox((prev) => (prev === name ? null : name));
 
+  /* dispense */
   const [dispenseForm, setDispenseForm]       = useState({ patientId: "", medicineName: "", quantity: "" });
   const [dispenseLoading, setDispenseLoading] = useState(false);
   const [dispenseMsg, setDispenseMsg]         = useState("");
 
+  /* medicine form */
   const EMPTY_MED = { medicineName: "", category: "", quantity: "", price: "", supplier: "", expiryDate: "", batchNumber: "" };
   const [medForm, setMedForm]     = useState(EMPTY_MED);
   const [medMsg, setMedMsg]       = useState("");
   const [medSaving, setMedSaving] = useState(false);
 
+  /* supplier form */
   const EMPTY_SUP = { name: "", email: "", phone: "", address: "", gstNumber: "" };
-  const [supForm, setSupForm]     = useState(EMPTY_SUP);
-  const [supMsg, setSupMsg]       = useState("");
+const [supForm, setSupForm] = useState({
+  name: "",
+  email: "",
+  phone: "",
+  gstNumber: "",
+  address: ""
+});
+  const [supMsg,  setSupMsg]       = useState("");
   const [supSaving, setSupSaving] = useState(false);
 
+  /* bill form */
   const EMPTY_BILL = { patientName: "", medicine: "", quantity: "", unitPrice: "", paymentMethod: "Cash" };
   const [billForm, setBillForm]     = useState(EMPTY_BILL);
   const [billMsg, setBillMsg]       = useState("");
   const [billSaving, setBillSaving] = useState(false);
 
-  const [editMedModal,  setEditMedModal]  = useState(false);
-  const [editMedData,   setEditMedData]   = useState({});
-  const [editMedMsg,    setEditMedMsg]    = useState("");
+  /* edit modals */
+  const [editMedModal, setEditMedModal] = useState(false);
+  const [editMedData,  setEditMedData]  = useState({});
+  const [editMedMsg,   setEditMedMsg]   = useState("");
 
-  const [editSupModal,  setEditSupModal]  = useState(false);
-  const [editSupData,   setEditSupData]   = useState({});
-  const [editSupMsg,    setEditSupMsg]    = useState("");
+  const [editSupModal, setEditSupModal] = useState(false);
+  const [editSupData,  setEditSupData]  = useState({});
+  const [editSupMsg,   setEditSupMsg]   = useState("");
 
-  const [editBillModal,  setEditBillModal]  = useState(false);
-  const [editBillData,   setEditBillData]   = useState({});
-  const [editBillMsg,    setEditBillMsg]    = useState("");
+  const [editBillModal, setEditBillModal] = useState(false);
+  const [editBillData,  setEditBillData]  = useState({});
+  const [editBillMsg,   setEditBillMsg]   = useState("");
 
+  /* prescription form */
   const EMPTY_RX = { patientName: "", doctorName: "", medicine: "", quantity: "", dosage: "", instructions: "" };
   const [rxForm, setRxForm]     = useState(EMPTY_RX);
   const [rxMsg, setRxMsg]       = useState("");
   const [rxSaving, setRxSaving] = useState(false);
 
-  const [settings, setSettings]   = useState({ deptName: "Pharmacy", email: "pharmacy@medcare.com", phone: "", address: "", lowStockThreshold: 20 });
+  /* settings */
+  const [settings, setSettings]       = useState({ deptName: "Pharmacy", email: "pharmacy@medcare.com", phone: "", address: "", lowStockThreshold: 20 });
   const [settingsMsg, setSettingsMsg] = useState("");
 
   const handleLogout = () => navigate("/");
 
+  /* ── Handlers ── */
   const handleDispenseChange = (e) =>
     setDispenseForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -191,6 +212,7 @@ function PharmacyDashboard() {
   const handleMedChange = (e) =>
     setMedForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
+  // ✅ FIX: added console.log to confirm POST response during testing
   const handleMedSubmit = async () => {
     if (!medForm.medicineName || medForm.quantity === "") {
       setMedMsg("⚠️ Medicine name and quantity are required.");
@@ -199,45 +221,87 @@ function PharmacyDashboard() {
     setMedSaving(true);
     setMedMsg("");
     try {
-      await axios.post(`${API}/pharmacy/medicines`, {
+      const response = await axios.post(`${API}/pharmacy/medicines`, {
         ...medForm,
-        quantity: Number(medForm.quantity),
-        price: Number(medForm.price) || 0,
+        quantity:   Number(medForm.quantity),
+        price:      Number(medForm.price) || 0,
+        expiryDate: medForm.expiryDate ? new Date(medForm.expiryDate).toISOString() : undefined,
       });
+      console.log("ADD MEDICINE RESPONSE:", response.data); // ✅ keep for debug
       setMedMsg("✅ Medicine added to inventory.");
       setMedForm(EMPTY_MED);
       refetchMeds();
       setOpenBox(null);
     } catch (err) {
+      console.error("ADD MEDICINE ERROR:", err.response?.data || err.message);
       setMedMsg(`❌ ${err.response?.data?.message || err.message}`);
     } finally {
       setMedSaving(false);
     }
   };
 
-  const handleSupChange = (e) =>
-    setSupForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+const handleSupChange = (e) => {
+  const field = e.target.name;
+  const value = e.target.value;
 
-  const handleSupSubmit = async () => {
-    if (!supForm.name) {
-      setSupMsg("⚠️ Supplier name is required.");
-      return;
-    }
+  setSupForm((old)=>({
+    ...old,
+    [field]: value
+  }));
+
+};
+
+  // ✅ FIX: added console.log to confirm POST response during testing
+const handleSupSubmit = async () => {
+  if (!supForm.name || !supForm.phone) {
+    setSupMsg("⚠️ Supplier name and phone are required.");
+    return;
+  }
+
+  try {
     setSupSaving(true);
     setSupMsg("");
-    try {
-      await axios.post(`${API}/pharmacy/suppliers`, supForm);
-      setSupMsg("✅ Supplier added.");
-      setSupForm(EMPTY_SUP);
-      refetchSup();
-      setOpenBox(null);
-    } catch (err) {
-      setSupMsg(`❌ ${err.response?.data?.message || err.message}`);
-    } finally {
-      setSupSaving(false);
-    }
-  };
 
+    const payload = {
+      name: supForm.name,
+      phone: supForm.phone,
+      email: supForm.email,
+      gstNumber: supForm.gstNumber,
+      address: supForm.address,
+      status: "Active"
+    };
+
+    console.log("Sending Supplier:", payload);
+
+    const res = await axios.post(
+      `${API}/pharmacy/suppliers`,
+      payload
+    );
+
+    console.log("Added Supplier:", res.data);
+
+    setSupMsg("✅ Supplier added successfully.");
+
+    setSupForm({
+      name: "",
+      email: "",
+      phone: "",
+      address: "",
+      gstNumber: ""
+    });
+
+    await refetchSup();
+    setOpenBox(null);
+
+  } catch (err) {
+    console.log(err);
+    setSupMsg(
+      `❌ ${err.response?.data?.message || err.message}`
+    );
+  } finally {
+    setSupSaving(false);
+  }
+};
   const handleBillChange = (e) =>
     setBillForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
@@ -252,18 +316,21 @@ function PharmacyDashboard() {
       const qty   = Number(billForm.quantity);
       const price = Number(billForm.unitPrice);
       const total = qty * price;
-      await axios.post(`${API}/pharmacy/bills`, {
-        patientName: billForm.patientName,
-        medicines: [{ name: billForm.medicine, quantity: qty, unitPrice: price }],
-        totalAmount: total,
-        paid: total,
+      const response = await axios.post(`${API}/pharmacy/bills`, {
+        patientName:   billForm.patientName,
+        medicines:     [{ name: billForm.medicine, quantity: qty, unitPrice: price }],
+        totalAmount:   total,
+        amount:        total,
         paymentMethod: billForm.paymentMethod,
+        status:        "Pending",
       });
+      console.log("ADD BILL RESPONSE:", response.data); // ✅ keep for debug
       setBillMsg("✅ Bill created.");
       setBillForm(EMPTY_BILL);
       refetchBills();
       setOpenBox(null);
     } catch (err) {
+      console.error("ADD BILL ERROR:", err.response?.data || err.message);
       setBillMsg(`❌ ${err.response?.data?.message || err.message}`);
     } finally {
       setBillSaving(false);
@@ -273,6 +340,7 @@ function PharmacyDashboard() {
   const handleRxChange = (e) =>
     setRxForm((p) => ({ ...p, [e.target.name]: e.target.value }));
 
+  // ✅ FIX: added console.log to confirm POST response during testing
   const handleRxSubmit = async () => {
     if (!rxForm.patientName || !rxForm.medicine || !rxForm.quantity) {
       setRxMsg("⚠️ Patient, medicine and quantity are required.");
@@ -281,15 +349,21 @@ function PharmacyDashboard() {
     setRxSaving(true);
     setRxMsg("");
     try {
-      await axios.post(`${API}/pharmacy/prescriptions`, {
-        ...rxForm,
-        quantity: Number(rxForm.quantity),
+      const response = await axios.post(`${API}/pharmacy/prescriptions`, {
+        patient:      rxForm.patientName,
+        doctor:       rxForm.doctorName,
+        medicine:     rxForm.medicine,
+        quantity:     Number(rxForm.quantity),
+        dosage:       rxForm.dosage,
+        instructions: rxForm.instructions,
       });
+      console.log("ADD PRESCRIPTION RESPONSE:", response.data); // ✅ keep for debug
       setRxMsg("✅ Prescription added.");
       setRxForm(EMPTY_RX);
       refetchRx();
       setOpenBox(null);
     } catch (err) {
+      console.error("ADD PRESCRIPTION ERROR:", err.response?.data || err.message);
       setRxMsg(`❌ ${err.response?.data?.message || err.message}`);
     } finally {
       setRxSaving(false);
@@ -334,8 +408,11 @@ function PharmacyDashboard() {
     try {
       await axios.put(`${API}/pharmacy/medicines/${editMedData._id}`, {
         ...editMedData,
-        quantity: Number(editMedData.quantity) || 0,
-        price: Number(editMedData.price) || 0,
+        quantity:   Number(editMedData.quantity) || 0,
+        price:      Number(editMedData.price)    || 0,
+        expiryDate: editMedData.expiryDate
+          ? new Date(editMedData.expiryDate.slice(0, 10)).toISOString()
+          : undefined,
       });
       setEditMedMsg("✅ Medicine updated successfully.");
       setTimeout(() => {
@@ -343,7 +420,7 @@ function PharmacyDashboard() {
         refetchMeds();
         setEditMedData({});
         setEditMedMsg("");
-      }, 1000);
+      }, 900);
     } catch (err) {
       setEditMedMsg(`❌ ${err.response?.data?.message || err.message}`);
     }
@@ -355,14 +432,24 @@ function PharmacyDashboard() {
       return;
     }
     try {
-      await axios.put(`${API}/pharmacy/suppliers/${editSupData._id}`, editSupData);
+await axios.put(
+ `${API}/pharmacy/suppliers/${editSupData._id}`,
+ {
+   name: editSupData.name,
+   phone: editSupData.phone,
+   email: editSupData.email,
+   gstNumber: editSupData.gstNumber,
+   address: editSupData.address
+ }
+);
       setEditSupMsg("✅ Supplier updated successfully.");
       setTimeout(() => {
         setEditSupModal(false);
         refetchSup();
         setEditSupData({});
         setEditSupMsg("");
-      }, 1000);
+      }, 900)
+      ;
     } catch (err) {
       setEditSupMsg(`❌ ${err.response?.data?.message || err.message}`);
     }
@@ -374,10 +461,11 @@ function PharmacyDashboard() {
       return;
     }
     try {
+      const amt = Number(editBillData.totalAmount || editBillData.amount) || 0;
       await axios.put(`${API}/pharmacy/bills/${editBillData._id}`, {
         ...editBillData,
-        totalAmount: Number(editBillData.totalAmount) || Number(editBillData.amount) || 0,
-        amount: Number(editBillData.totalAmount) || Number(editBillData.amount) || 0,
+        totalAmount: amt,
+        amount:      amt,
       });
       setEditBillMsg("✅ Bill updated successfully.");
       setTimeout(() => {
@@ -385,14 +473,14 @@ function PharmacyDashboard() {
         refetchBills();
         setEditBillData({});
         setEditBillMsg("");
-      }, 1000);
+      }, 900);
     } catch (err) {
       setEditBillMsg(`❌ ${err.response?.data?.message || err.message}`);
     }
   };
 
   const sidebar = [
-    { page: "dashboard",    label: "Dashboard",            icon: "📊" },
+    { page: "dashboard",    label: "Dashboard",             icon: "📊" },
     { page: "prescription", label: "Prescription Requests", icon: "📝" },
     { page: "dispense",     label: "Dispense Medicines",    icon: "💊" },
     { page: "inventory",    label: "Inventory",             icon: "📦" },
@@ -402,8 +490,8 @@ function PharmacyDashboard() {
     { page: "settings",     label: "Settings",              icon: "⚙️" },
   ];
 
-  const INPUT = { width:"100%", padding:"9px 12px", borderRadius:8, border:"1.5px solid #e5e7eb", fontSize:"0.9rem", boxSizing:"border-box" };
-  const LABEL = { display:"block", fontWeight:600, fontSize:"0.82rem", marginBottom:4 };
+  const INPUT = { width: "100%", padding: "9px 12px", borderRadius: 8, border: "1.5px solid #e5e7eb", fontSize: "0.9rem", boxSizing: "border-box" };
+  const LABEL = { display: "block", fontWeight: 600, fontSize: "0.82rem", marginBottom: 4 };
 
   return (
     <>
@@ -430,6 +518,7 @@ function PharmacyDashboard() {
 
         <main className="mc-content">
 
+          {/* ── PROFILE ── */}
           {activePage === "profile" && (
             <>
               <div className="mc-page-header"><h1>Pharmacy Staff Profile</h1></div>
@@ -447,6 +536,7 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── NOTIFICATIONS ── */}
           {activePage === "notifications" && (
             <>
               <div className="mc-page-header"><h1>Notifications</h1></div>
@@ -467,6 +557,7 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── DASHBOARD ── */}
           {activePage === "dashboard" && (
             <>
               <div className="mc-page-header">
@@ -517,8 +608,8 @@ function PharmacyDashboard() {
                        prescriptions.slice(0, 8).map((p, i) => (
                          <tr key={p._id || i}>
                            <td>{p._id ? `#${String(p._id).slice(-5).toUpperCase()}` : `#${i + 1}`}</td>
-                           <td>{p.patientName || "—"}</td>
-                           <td>{p.doctorName || "—"}</td>
+                           <td>{p.patient || "—"}</td>
+                           <td>{p.doctor  || "—"}</td>
                            <td>{p.medicine || p.medicineName || "—"}</td>
                            <td><Badge status={p.status} /></td>
                          </tr>
@@ -558,6 +649,7 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── PRESCRIPTIONS ── */}
           {activePage === "prescription" && (
             <>
               <div className="mc-page-header">
@@ -620,8 +712,8 @@ function PharmacyDashboard() {
                          <tr key={p._id || i}>
                            <td>{i + 1}</td>
                            <td>{p._id ? `#${String(p._id).slice(-5).toUpperCase()}` : "—"}</td>
-                           <td>{p.patientName || "—"}</td>
-                           <td>{p.doctorName || "—"}</td>
+                           <td>{p.patient || "—"}</td>
+                           <td>{p.doctor  || "—"}</td>
                            <td>{p.medicine || p.medicineName || "—"}</td>
                            <td>{p.quantity ?? "—"}</td>
                            <td>{p.dosage || "—"}</td>
@@ -651,6 +743,7 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── DISPENSE ── */}
           {activePage === "dispense" && (
             <>
               <div className="mc-page-header"><h1>Issue Medicine</h1><p>Dispense medicine directly by name — deducts from inventory</p></div>
@@ -700,6 +793,7 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── INVENTORY ── */}
           {activePage === "inventory" && (
             <>
               <div className="mc-page-header"><h1>Inventory</h1><p>All medicines in stock — add new entries below</p></div>
@@ -790,11 +884,11 @@ function PharmacyDashboard() {
                            <td>{m.expiryDate ? new Date(m.expiryDate).toLocaleDateString("en-IN") : "—"}</td>
                            <td><Badge status={(m.quantity ?? 0) < 20 ? "Low Stock" : "In Stock"} /></td>
                            <td>
-                             <div style={{ display:"flex", gap:4 }}>
+                             <div style={{ display: "flex", gap: 4 }}>
                                <button
                                  className="mc-btn"
                                  style={{ padding: "4px 10px", fontSize: 12, background: "#7c3aed" }}
-                                 onClick={() => { setEditMedData({...m}); setEditMedMsg(""); setEditMedModal(true); }}
+                                 onClick={() => { setEditMedData({ ...m }); setEditMedMsg(""); setEditMedModal(true); }}
                                >✏️ Edit</button>
                                <button
                                  className="mc-btn"
@@ -813,13 +907,13 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── LOW STOCK ── */}
           {activePage === "lowstock" && (
             <>
               <div className="mc-page-header">
                 <h1>Low Stock Alerts</h1>
                 <p>Items with fewer than 20 units — reorder required</p>
               </div>
-
               <div className="mc-cards">
                 <div className="mc-card rose">
                   <div className="mc-card-icon">🚨</div>
@@ -840,7 +934,6 @@ function PharmacyDashboard() {
                   <div className="mc-card-sub up">No action needed</div>
                 </div>
               </div>
-
               <div className="mc-panel">
                 <div className="mc-panel-header">
                   <h2>Low Stock Items <span>{lowStockItems.length} alerts</span></h2>
@@ -851,48 +944,41 @@ function PharmacyDashboard() {
                   ) : lowStockItems.length === 0 ? (
                     <p style={{ color: "var(--text-secondary)" }}>✅ All items are sufficiently stocked.</p>
                   ) : (
-                    <>
-                      {lowStockItems
-                        .slice()
-                        .sort((a, b) => (a.quantity ?? 0) - (b.quantity ?? 0))
-                        .map((m, i) => {
-                          const isCritical = (m.quantity ?? 0) < 10;
-                          return (
-                            <div
-                              className="mc-info-item"
-                              key={m._id || i}
-                              style={{
-                                borderLeftColor: isCritical ? "var(--rose, #f43f5e)" : "var(--amber, #f59e0b)",
-                                marginBottom: 10,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                flexWrap: "wrap",
-                                gap: 8,
-                              }}
-                            >
-                              <span>
-                                <span className="mc-icon">{isCritical ? "🚨" : "⚠️"}</span>
-                                <b>{m.medicineName || m.name || "—"}</b>
-                                {" — "}
-                                <b style={{ color: isCritical ? "var(--rose, #f43f5e)" : "var(--amber, #f59e0b)" }}>
-                                  {m.quantity ?? 0} units left
-                                </b>
-                                {m.supplier && (
-                                  <span style={{ marginLeft: 8, color: "var(--text-secondary)", fontSize: 13 }}>
-                                    · Supplier: {m.supplier}
-                                  </span>
-                                )}
-                              </span>
-                              <Badge status={isCritical ? "Critical" : "Low Stock"} />
-                            </div>
-                          );
-                        })}
-                    </>
+                    lowStockItems
+                      .slice()
+                      .sort((a, b) => (a.quantity ?? 0) - (b.quantity ?? 0))
+                      .map((m, i) => {
+                        const isCritical = (m.quantity ?? 0) < 10;
+                        return (
+                          <div
+                            className="mc-info-item"
+                            key={m._id || i}
+                            style={{
+                              borderLeftColor: isCritical ? "var(--rose, #f43f5e)" : "var(--amber, #f59e0b)",
+                              marginBottom: 10, display: "flex", alignItems: "center",
+                              justifyContent: "space-between", flexWrap: "wrap", gap: 8,
+                            }}
+                          >
+                            <span>
+                              <span className="mc-icon">{isCritical ? "🚨" : "⚠️"}</span>
+                              <b>{m.medicineName || m.name || "—"}</b>
+                              {" — "}
+                              <b style={{ color: isCritical ? "var(--rose, #f43f5e)" : "var(--amber, #f59e0b)" }}>
+                                {m.quantity ?? 0} units left
+                              </b>
+                              {m.supplier && (
+                                <span style={{ marginLeft: 8, color: "var(--text-secondary)", fontSize: 13 }}>
+                                  · Supplier: {m.supplier}
+                                </span>
+                              )}
+                            </span>
+                            <Badge status={isCritical ? "Critical" : "Low Stock"} />
+                          </div>
+                        );
+                      })
                   )}
                 </div>
               </div>
-
               {lowStockItems.length > 0 && (
                 <div className="mc-panel">
                   <div className="mc-panel-header"><h2>💡 Reorder Tip</h2></div>
@@ -907,6 +993,7 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── SUPPLIERS ── */}
           {activePage === "suppliers" && (
             <>
               <div className="mc-page-header"><h1>Suppliers</h1><p>Registered pharmacy suppliers — add new ones below</p></div>
@@ -961,15 +1048,24 @@ function PharmacyDashboard() {
                            <td>{i + 1}</td>
                            <td>{s.name || "—"}</td>
                            <td>{s.phone || s.contact || "—"}</td>
-                           <td>{s.email || "—"}</td>
-                           <td>{s.gstNumber || "—"}</td>
+                           <td>
+  {s.email 
+    ? s.email 
+    : "—"}
+</td>
+
+<td>
+  {s.gstNumber
+    ? s.gstNumber
+    : "—"}
+</td>
                            <td><Badge status={s.status || "Active"} /></td>
                            <td>
-                             <div style={{ display:"flex", gap:4 }}>
+                             <div style={{ display: "flex", gap: 4 }}>
                                <button
                                  className="mc-btn"
                                  style={{ padding: "4px 10px", fontSize: 12, background: "#7c3aed" }}
-                                 onClick={() => { setEditSupData({...s}); setEditSupMsg(""); setEditSupModal(true); }}
+                                 onClick={() => { setEditSupData({ ...s }); setEditSupMsg(""); setEditSupModal(true); }}
                                >✏️ Edit</button>
                                <button
                                  className="mc-btn"
@@ -988,10 +1084,10 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── BILLING ── */}
           {activePage === "billing" && (
             <>
               <div className="mc-page-header"><h1>Billing Support</h1><p>Pharmacy medicine billing records</p></div>
-
               <div className="mc-cards">
                 <div className="mc-card teal">
                   <div className="mc-card-icon">💳</div>
@@ -1041,12 +1137,10 @@ function PharmacyDashboard() {
                   </div>
                   <div className="mc-form-group">
                     <label>Payment Method</label>
-                    <select name="paymentMethod" value={billForm.paymentMethod} onChange={handleBillChange} style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)" }}>
-                      <option>Cash</option>
-                      <option>Card</option>
-                      <option>UPI</option>
-                      <option>Insurance</option>
-                      <option>Other</option>
+                    <select name="paymentMethod" value={billForm.paymentMethod} onChange={handleBillChange}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid var(--border, #e5e7eb)" }}>
+                      <option>Cash</option><option>Card</option><option>UPI</option>
+                      <option>Insurance</option><option>Other</option>
                     </select>
                   </div>
                   {billForm.quantity && billForm.unitPrice && (
@@ -1068,11 +1162,11 @@ function PharmacyDashboard() {
                 <div className="mc-table-wrap">
                   <table className="mc-table">
                     <thead>
-                      <tr><th>#</th><th>Patient</th><th>Medicines</th><th>Amount (₹)</th><th>Payment</th><th>Date</th><th>Status</th></tr>
+                      <tr><th>#</th><th>Patient</th><th>Medicines</th><th>Amount (₹)</th><th>Payment</th><th>Date</th><th>Status</th><th>Action</th></tr>
                     </thead>
                     <tbody>
-                      {billLoading ? <LoadingRow cols={7} /> :
-                       bills.length === 0 ? <EmptyRow cols={7} message="No billing records found" /> :
+                      {billLoading ? <LoadingRow cols={8} /> :
+                       bills.length === 0 ? <EmptyRow cols={8} message="No billing records found" /> :
                        bills.map((b, i) => (
                          <tr key={b._id || i}>
                            <td>{i + 1}</td>
@@ -1086,6 +1180,14 @@ function PharmacyDashboard() {
                            <td>{b.paymentMethod || "—"}</td>
                            <td>{b.createdAt ? new Date(b.createdAt).toLocaleDateString("en-IN") : "—"}</td>
                            <td><Badge status={b.status} /></td>
+                           {/* ✅ FIX: Added Edit button to Bills table (was missing in original) */}
+                           <td>
+                             <button
+                               className="mc-btn"
+                               style={{ padding: "4px 10px", fontSize: 12, background: "#7c3aed" }}
+                               onClick={() => { setEditBillData({ ...b }); setEditBillMsg(""); setEditBillModal(true); }}
+                             >✏️ Edit</button>
+                           </td>
                          </tr>
                        ))
                       }
@@ -1096,10 +1198,10 @@ function PharmacyDashboard() {
             </>
           )}
 
+          {/* ── SETTINGS ── */}
           {activePage === "settings" && (
             <>
               <div className="mc-page-header"><h1>Settings</h1><p>Pharmacy department configuration</p></div>
-
               <div className="mc-panel">
                 <div className="mc-panel-header"><h2>Department Information</h2></div>
                 <div className="mc-panel-body">
@@ -1131,14 +1233,14 @@ function PharmacyDashboard() {
                   </div>
                 </div>
               </div>
-
               <div className="mc-panel">
                 <div className="mc-panel-header"><h2>Stock Alert Threshold</h2></div>
                 <div className="mc-panel-body">
                   <div className="mc-form">
                     <div className="mc-form-group" style={{ maxWidth: 300 }}>
                       <label>Low Stock Alert Threshold (units)</label>
-                      <input type="number" min="1" value={settings.lowStockThreshold} onChange={e => setSettings(p => ({ ...p, lowStockThreshold: e.target.value }))} />
+                      <input type="number" min="1" value={settings.lowStockThreshold}
+                        onChange={e => setSettings(p => ({ ...p, lowStockThreshold: e.target.value }))} />
                     </div>
                     <p style={{ color: "var(--text-secondary)", marginTop: 8, marginBottom: 12, fontSize: 13 }}>
                       Medicines with quantity below this value will appear in Low Stock Alerts.
@@ -1149,7 +1251,6 @@ function PharmacyDashboard() {
                   </div>
                 </div>
               </div>
-
               <div className="mc-panel">
                 <div className="mc-panel-header"><h2>System Info</h2></div>
                 <div className="mc-panel-body">
@@ -1176,15 +1277,13 @@ function PharmacyDashboard() {
               <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Medicine</h3>
               <button onClick={() => setEditMedModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
             </div>
-            {editMedMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editMedMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editMedMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editMedMsg}</div>}
-
-            {/* Medicine Name */}
+            {editMedMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",
+              background:editMedMsg.startsWith("✅")?"#d1fae5":"#fee2e2",
+              color:editMedMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editMedMsg}</div>}
             <div style={{ marginBottom:"0.8rem" }}>
               <label style={LABEL}>Medicine Name</label>
               <input style={INPUT} value={editMedData.medicineName||""} onChange={e => setEditMedData({...editMedData,medicineName:e.target.value})} />
             </div>
-
-            {/* Quantity + Category */}
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
               <div>
                 <label style={LABEL}>Quantity</label>
@@ -1195,8 +1294,6 @@ function PharmacyDashboard() {
                 <input style={INPUT} value={editMedData.category||""} onChange={e => setEditMedData({...editMedData,category:e.target.value})} />
               </div>
             </div>
-
-            {/* Price + Supplier */}
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
               <div>
                 <label style={LABEL}>Price (₹)</label>
@@ -1207,13 +1304,11 @@ function PharmacyDashboard() {
                 <input style={INPUT} value={editMedData.supplier||""} onChange={e => setEditMedData({...editMedData,supplier:e.target.value})} />
               </div>
             </div>
-
-            {/* Expiry Date */}
             <div style={{ marginBottom:"0.8rem" }}>
               <label style={LABEL}>Expiry Date</label>
-              <input type="date" style={INPUT} value={editMedData.expiryDate ? editMedData.expiryDate.slice(0,10) : ""} onChange={e => setEditMedData({...editMedData,expiryDate:e.target.value})} />
+              <input type="date" style={INPUT} value={editMedData.expiryDate ? editMedData.expiryDate.slice(0,10) : ""}
+                onChange={e => setEditMedData({...editMedData,expiryDate:e.target.value})} />
             </div>
-
             <div style={{ display:"flex",gap:"0.75rem" }}>
               <button className="mc-btn" style={{ flex:1 }} onClick={handleEditMed}>💾 Save</button>
               <button onClick={() => setEditMedModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
@@ -1230,38 +1325,45 @@ function PharmacyDashboard() {
               <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Supplier</h3>
               <button onClick={() => setEditSupModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
             </div>
-            {editSupMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editSupMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editSupMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editSupMsg}</div>}
-
-            {/* Supplier Name */}
+            {editSupMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",
+              background:editSupMsg.startsWith("✅")?"#d1fae5":"#fee2e2",
+              color:editSupMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editSupMsg}</div>}
             <div style={{ marginBottom:"0.8rem" }}>
               <label style={LABEL}>Supplier Name</label>
               <input style={INPUT} value={editSupData.name||""} onChange={e => setEditSupData({...editSupData,name:e.target.value})} />
             </div>
-
-            {/* Phone + Email */}
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
               <div>
                 <label style={LABEL}>Phone</label>
-                <input style={INPUT} value={editSupData.phone||""} onChange={e => setEditSupData({...editSupData,phone:e.target.value})} />
-              </div>
+<input
+  name="phone"
+  value={supForm.phone}
+  onChange={handleSupChange}
+/>              </div>
               <div>
                 <label style={LABEL}>Email</label>
-                <input type="email" style={INPUT} value={editSupData.email||""} onChange={e => setEditSupData({...editSupData,email:e.target.value})} />
-              </div>
+<input
+  type="email"
+  name="email"
+  placeholder="contact@supplier.com"
+  value={supForm.email}
+  onChange={handleSupChange}
+/>              </div>
             </div>
-
-            {/* GST + Address */}
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
               <div>
                 <label style={LABEL}>GST Number</label>
-                <input style={INPUT} value={editSupData.gstNumber||""} onChange={e => setEditSupData({...editSupData,gstNumber:e.target.value})} />
-              </div>
+<input
+  name="gstNumber"
+  placeholder="GST number"
+  value={supForm.gstNumber}
+  onChange={handleSupChange}
+/>              </div>
               <div>
                 <label style={LABEL}>Address</label>
                 <input style={INPUT} value={editSupData.address||""} onChange={e => setEditSupData({...editSupData,address:e.target.value})} />
               </div>
             </div>
-
             <div style={{ display:"flex",gap:"0.75rem" }}>
               <button className="mc-btn" style={{ flex:1 }} onClick={handleEditSup}>💾 Save</button>
               <button onClick={() => setEditSupModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
@@ -1278,19 +1380,19 @@ function PharmacyDashboard() {
               <h3 style={{ margin:0,color:"#7c3aed" }}>✏️ Edit Bill</h3>
               <button onClick={() => setEditBillModal(false)} style={{ background:"none",border:"none",fontSize:"1.3rem",cursor:"pointer" }}>✕</button>
             </div>
-            {editBillMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",background:editBillMsg.startsWith("✅")?"#d1fae5":"#fee2e2",color:editBillMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editBillMsg}</div>}
-
-            {/* Patient Name */}
+            {editBillMsg && <div style={{ padding:"0.5rem 0.8rem",borderRadius:6,marginBottom:"0.8rem",
+              background:editBillMsg.startsWith("✅")?"#d1fae5":"#fee2e2",
+              color:editBillMsg.startsWith("✅")?"#065f46":"#991b1b",fontSize:"0.85rem" }}>{editBillMsg}</div>}
             <div style={{ marginBottom:"0.8rem" }}>
               <label style={LABEL}>Patient Name</label>
-              <input style={INPUT} value={editBillData.patientName||editBillData.patient||""} onChange={e => setEditBillData({...editBillData,patientName:e.target.value,patient:e.target.value})} />
+              <input style={INPUT} value={editBillData.patientName||editBillData.patient||""}
+                onChange={e => setEditBillData({...editBillData,patientName:e.target.value,patient:e.target.value})} />
             </div>
-
-            {/* Amount + Status */}
             <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.8rem",marginBottom:"0.8rem" }}>
               <div>
                 <label style={LABEL}>Amount (₹)</label>
-                <input type="number" style={INPUT} value={editBillData.totalAmount||editBillData.amount||0} onChange={e => setEditBillData({...editBillData,totalAmount:Number(e.target.value),amount:Number(e.target.value)})} />
+                <input type="number" style={INPUT} value={editBillData.totalAmount||editBillData.amount||0}
+                  onChange={e => setEditBillData({...editBillData,totalAmount:Number(e.target.value),amount:Number(e.target.value)})} />
               </div>
               <div>
                 <label style={LABEL}>Status</label>
@@ -1299,15 +1401,12 @@ function PharmacyDashboard() {
                 </select>
               </div>
             </div>
-
-            {/* Payment Method */}
             <div style={{ marginBottom:"0.8rem" }}>
               <label style={LABEL}>Payment Method</label>
               <select style={INPUT} value={editBillData.paymentMethod||"Cash"} onChange={e => setEditBillData({...editBillData,paymentMethod:e.target.value})}>
                 <option>Cash</option><option>Card</option><option>UPI</option><option>Insurance</option><option>Other</option>
               </select>
             </div>
-
             <div style={{ display:"flex",gap:"0.75rem" }}>
               <button className="mc-btn" style={{ flex:1 }} onClick={handleEditBill}>💾 Save</button>
               <button onClick={() => setEditBillModal(false)} style={{ flex:1,padding:"0.6rem",border:"1px solid #d1d5db",borderRadius:8,background:"#f9fafb",cursor:"pointer" }}>Cancel</button>
@@ -1315,7 +1414,6 @@ function PharmacyDashboard() {
           </div>
         </div>
       )}
-
     </>
   );
 }

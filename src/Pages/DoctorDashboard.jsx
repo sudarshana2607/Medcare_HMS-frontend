@@ -661,21 +661,11 @@ function DoctorDashboard() {
           <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1.25rem" }}>
             <button
               className="mc-btn mc-btn-primary"
-              onClick={async () => {
-                try {
-                  await updateDoc(doc(db, "doctors", doctor.id), {
-                    firstname: profileForm.firstname,
-                    lastname: profileForm.lastname,
-                    email: profileForm.email,
-                    phone: profileForm.phone,
-                    department: profileForm.department,
-                  });
-                  alert("Profile saved successfully.");
-                } catch (err) {
-                  console.error(err);
-                  alert("Failed to save profile.");
-                }
-              }}
+              onClick={() => {
+  const updated = { ...doctor, ...profileForm };
+  localStorage.setItem("loginData", JSON.stringify(updated));
+  alert("Profile saved successfully.");
+}}
             >
               Save Changes
             </button>

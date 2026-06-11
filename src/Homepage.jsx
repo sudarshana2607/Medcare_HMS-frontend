@@ -281,18 +281,31 @@ function Homepage() {
         /* ── Hero trust bar ── */
         .hero-trust-bar {
           display: flex;
-          gap: 2rem;
+          gap: 0.75rem;
           margin-top: 2rem;
           flex-wrap: wrap;
         }
         .hero-trust-item {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          font-size: 0.88rem;
-          color: #4b5563;
+          gap: 0.45rem;
+          font-size: 0.82rem;
+          font-weight: 600;
+          color: #374151;
+          white-space: nowrap;
+          background: #fff;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 0.45rem 0.9rem;
+          box-shadow: 0 2px 6px rgba(124,58,237,0.07);
+          transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
         }
-        .hero-trust-icon { font-size: 1.2rem; }
+        .hero-trust-item:hover {
+          border-color: #7c3aed55;
+          box-shadow: 0 4px 12px rgba(124,58,237,0.13);
+          transform: translateY(-2px);
+        }
+        .hero-trust-icon { font-size: 1rem; }
 
         /* ── How it works ── */
         .hiw-section { padding: 4rem 2rem; }
@@ -382,36 +395,70 @@ function Homepage() {
           background: #f0fdf4;
         }
 
-        /* ── FAQ ── */
+        /* ── FAQ cards ── */
+        .faq-box {
+          max-width: 800px;
+          margin: 0 auto;
+          padding: 0 2rem;
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
         .faq-item {
           cursor: pointer;
-          border-bottom: 1px solid #e5e7eb;
-          padding: 1rem 0;
-          transition: background 0.2s;
+          background: #fff;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 14px;
+          padding: 1.2rem 1.5rem;
+          box-shadow: 0 2px 8px rgba(124,58,237,0.06);
+          transition: border-color 0.2s, box-shadow 0.2s;
         }
-        .faq-item:last-child { border-bottom: none; }
+        .faq-item:hover {
+          border-color: #7c3aed44;
+          box-shadow: 0 4px 16px rgba(124,58,237,0.12);
+        }
+        .faq-item.open-card {
+          border-color: #7c3aed;
+          background: #faf8ff;
+        }
         .faq-item h4 {
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-start;
           margin: 0;
           font-size: 1rem;
+          font-weight: 700;
+          color: #1f2937;
+          text-align: left;
+          line-height: 1.5;
+          gap: 1rem;
         }
         .faq-toggle {
-          font-size: 1.4rem;
-          font-weight: 400;
-          line-height: 1;
+          font-size: 1.3rem;
+          font-weight: 600;
+          line-height: 1.2;
           color: #7c3aed;
           transition: transform 0.3s ease;
           flex-shrink: 0;
-          margin-left: 1rem;
+          margin-left: auto;
+          width: 28px;
+          height: 28px;
+          background: #f5f3ff;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
-        .faq-toggle.open { transform: rotate(45deg); }
+        .faq-toggle.open { transform: rotate(45deg); background: #7c3aed; color: #fff; }
         .faq-answer {
-          margin-top: 0.6rem;
+          margin-top: 0.75rem;
           margin-bottom: 0;
           color: #4b5563;
-          line-height: 1.6;
+          line-height: 1.7;
+          font-size: 0.92rem;
+          padding-right: 2.5rem;
+          border-top: 1px solid #e5e7eb;
+          padding-top: 0.75rem;
         }
 
         /* ── Star rating ── */
@@ -496,18 +543,35 @@ function Homepage() {
         /* ── Accreditation bar ── */
         .accreditation-bar {
           display: flex;
-          gap: 2rem;
+          gap: 0.75rem;
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
-          padding: 1.2rem 2rem;
+          padding: 1.5rem 2rem;
           background: #f9fafb;
           border-top: 1px solid #f3f4f6;
           border-bottom: 1px solid #f3f4f6;
-          font-size: 0.82rem;
-          color: #6b7280;
         }
-        .accreditation-bar span { display: flex; align-items: center; gap: 6px; }
+        .accreditation-bar span {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 0.8rem;
+          font-weight: 600;
+          color: #374151;
+          background: #fff;
+          border: 1.5px solid #e5e7eb;
+          border-radius: 10px;
+          padding: 0.45rem 0.9rem;
+          box-shadow: 0 2px 6px rgba(124,58,237,0.06);
+          white-space: nowrap;
+          transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+        }
+        .accreditation-bar span:hover {
+          border-color: #7c3aed55;
+          box-shadow: 0 4px 12px rgba(124,58,237,0.12);
+          transform: translateY(-2px);
+        }
 
         /* ── Module icon dot ── */
         .module-icon { font-size: 1.8rem; margin-bottom: 0.5rem; }
@@ -670,7 +734,7 @@ function Homepage() {
             ].map((item, i) => (
               <RevealSection key={i} delay={i * 0.1}>
                 <div className="about-card">
-                  <h1>{item.num}</h1>
+                  <h1 style={{ fontWeight: 800, color: "#1f2937" }}>{item.num}</h1>
                   <h3>{item.title}</h3>
                   <p>{item.desc}</p>
                 </div>
@@ -759,9 +823,9 @@ function Homepage() {
       {/* ── Appointment Booking ── */}
       <section id="booking">
         <h2 className="section-title">Book a Meeting</h2>
-        <div className="booking-container">
-          {/* Progress bar */}
-          <div className="form-progress-wrap">
+        {/* Progress bar — above the booking box */}
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 2rem 1.5rem" }}>
+          <div className="form-progress-wrap" style={{ marginBottom: 0 }}>
             <div className="form-steps-row">
               {formSteps.map((s, i) => (
                 <span key={s} className={`form-step-chip ${i < currentStep ? "done" : i === currentStep ? "active" : ""}`}>
@@ -777,7 +841,9 @@ function Homepage() {
               <div className="form-progress-bar-fill" style={{ width: `${formProgress}%` }} />
             </div>
           </div>
+        </div>
 
+        <div className="booking-container" style={{ marginTop: 0 }}>
           <form className="booking-form" onSubmit={handleSubmit}>
             <input type="text" name="fullname" placeholder="Enter Full Name" value={appointmentData.fullname} onChange={handleChange} required />
             <input type="email" name="email" placeholder="Enter Email Address" value={appointmentData.email} onChange={handleChange} required />
@@ -869,7 +935,7 @@ function Homepage() {
       {/* ── Feedback ── */}
       <section className="feedback-section">
         <h2 className="section-title">Share Your Feedback</h2>
-        <div className="booking-container">
+        <div className="booking-container" style={{ maxWidth: 700, margin: "0 auto", padding: "2rem 2.5rem" }}>
           <form className="booking-form" onSubmit={handleFeedbackSubmit}>
             <input type="text" name="name" placeholder="Enter Name" value={feedbackData.name} onChange={handleFeedbackChange} required />
             <input type="email" name="email" placeholder="Enter Email" value={feedbackData.email} onChange={handleFeedbackChange} required />
@@ -918,7 +984,7 @@ function Homepage() {
         <h2 className="section-title">Frequently Asked Questions</h2>
         <div className="faq-box">
           {faqItems.map((item, i) => (
-            <div className="faq-item" key={i} onClick={() => setOpenFaq(openFaq === i ? null : i)}>
+            <div className={`faq-item ${openFaq === i ? "open-card" : ""}`} key={i} onClick={() => setOpenFaq(openFaq === i ? null : i)}>
               <h4>
                 {item.q}
                 <span className={`faq-toggle ${openFaq === i ? "open" : ""}`}>+</span>

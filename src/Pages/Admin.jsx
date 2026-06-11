@@ -210,18 +210,36 @@ function Admin() {
     }
     setEditDocSaving(true); setEditDocMsg("");
     try {
-      const res = await axios.put(`${API}/admin/doctors/${_id}`, { firstname, lastname, email, phone, department });
-      const updated = res.data?.data || { ...editDocData, firstname, lastname, email, phone, department };
-      // Immediately patch the table row without waiting for refetch
-      setDoctorsOverride(prev =>
-        Array.isArray(prev)
-          ? prev.map(d => d._id === _id ? { ...d, ...updated } : d)
-          : Array.isArray(doctors) ? doctors.map(d => d._id === _id ? { ...d, ...updated } : d) : [updated]
-      );
-      setEditDocMsg("✅ Doctor updated!");
-      setEditDocSaving(false);
-      setEditDocModal(false);
-      refetchDoctors();
+      // Always apply locally first regardless of backend response
+const localUpdate = { ...editDocData, firstname, lastname, email, phone, department };
+setDoctorsOverride(prev =>
+  Array.isArray(prev)
+    ? prev.map(d => d._id === _id ? { ...d, ...localUpdate } : d)
+    : [localUpdate]
+);
+
+try {
+  const res = await axios.put(`${API}/admin/doctors/${_id}`, { firstname, lastname, email, phone, department });
+  const serverUpdate = res.data?.data || res.data?.doctor || localUpdate;
+  // Patch again with server response if it has real data
+  if (serverUpdate && serverUpdate._id) {
+    setDoctorsOverride(prev =>
+      Array.isArray(prev)
+        ? prev.map(d => d._id === _id ? { ...d, ...serverUpdate } : d)
+        : [serverUpdate]
+    );
+  }
+} catch (err) {
+  // Backend failed but local update already applied — show warning not error
+  setEditDocMsg("⚠️ Saved locally. Backend sync failed: " + (err.response?.data?.message || err.message));
+  setEditDocSaving(false);
+  return;
+}
+
+setEditDocMsg("✅ Doctor updated!");
+setEditDocSaving(false);
+setEditDocModal(false);
+// Don't refetch — it would overwrite local changes with stale DB data
     } catch (err) {
       setEditDocMsg("❌ " + (err.response?.data?.message || err.message));
       setEditDocSaving(false);

@@ -65,7 +65,6 @@ const S = {
     border: "1.5px solid #e5e7eb", fontSize: "0.9rem",
     outline: "none", boxSizing: "border-box", transition: "border-color 0.2s",
   },
-  row: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", marginBottom: "1rem" },
   group: { marginBottom: "1rem" },
   errText: { fontSize: "0.78rem", color: "#ef4444", marginTop: 3 },
   loginErrBox: {
@@ -134,7 +133,6 @@ const ROLE_ICONS = {
   pharmacystaff: "💊",
 };
 
-// Non-admin roles only
 const OTHER_ROLES = [
   ["doctor", "Doctor"],
   ["patient", "Patient"],
@@ -145,15 +143,12 @@ const OTHER_ROLES = [
 function Login() {
   const navigate = useNavigate();
 
-  // "admin" or "other" — controls which form shows
   const [loginType, setLoginType] = useState("other");
 
   const [formData, setFormData] = useState({
-    firstname: "",
-    lastname: "",
     email: "",
     password: "",
-    role: "patient",   // default for non-admin
+    role: "patient",
     remember: false,
   });
 
@@ -177,32 +172,21 @@ function Login() {
     setErrors({});
     setLoginError("");
     setSuccess("");
-    // Reset role to sensible default when switching
     setFormData((p) => ({ ...p, role: type === "admin" ? "admin" : "patient" }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = {};
-
-    // Admin requires firstname + lastname too
-    if (loginType === "admin") {
-      if (!formData.firstname.trim()) newErrors.firstname = "First name required";
-      if (!formData.lastname.trim())  newErrors.lastname  = "Last name required";
-    }
-
     if (!formData.email)    newErrors.email    = "Email required";
     if (!formData.password) newErrors.password = "Password required";
     setErrors(newErrors);
     if (Object.keys(newErrors).length) return;
 
-    // Role: hardcoded "admin" for admin tab, selected role for others
     const role = loginType === "admin" ? "admin" : formData.role;
 
     try {
       const response = await axios.post(`${API}/user/login`, {
-        firstname: loginType === "admin" ? formData.firstname : undefined,
-        lastname:  loginType === "admin" ? formData.lastname  : undefined,
         email:    formData.email,
         password: formData.password,
         role,
@@ -322,30 +306,10 @@ function Login() {
             </div>
           )}
 
-          {/* ── Admin badge — only for admin ── */}
+          {/* ── Admin badge ── */}
           {isAdmin && (
             <div style={S.adminBadge}>🛡️ Admin Portal — Restricted Access</div>
           )}
-
-          {/* Name row — shown for both, but only validated for admin */}
-          <div style={S.row}>
-            <div>
-              <label style={S.label}>
-                First Name {isAdmin && <span style={{ color: "#ef4444" }}>*</span>}
-              </label>
-              <input style={S.input} name="firstname" placeholder="First name"
-                value={formData.firstname} onChange={handleChange} />
-              {errors.firstname && <p style={S.errText}>⚠️ {errors.firstname}</p>}
-            </div>
-            <div>
-              <label style={S.label}>
-                Last Name {isAdmin && <span style={{ color: "#ef4444" }}>*</span>}
-              </label>
-              <input style={S.input} name="lastname" placeholder="Last name"
-                value={formData.lastname} onChange={handleChange} />
-              {errors.lastname && <p style={S.errText}>⚠️ {errors.lastname}</p>}
-            </div>
-          </div>
 
           {/* Email */}
           <div style={S.group}>
